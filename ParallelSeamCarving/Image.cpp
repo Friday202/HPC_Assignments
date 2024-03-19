@@ -117,7 +117,8 @@ void Image::CalculateCumulativeEnergy()
 	}
 
 	// The rest is caculated
-	for (int i = arraySize - imgWidth; i >= 0; --i)
+	int startingIndex = arraySize - imgWidth; // ???  -1 ??? ;
+	for (int i = startingIndex; i >= 0; --i)
 	{
 		int indexC = i + imgWidth;
 		int indexL = indexC - 1;
@@ -126,7 +127,7 @@ void Image::CalculateCumulativeEnergy()
 		double minValue; 
 
 		// Right pixel border 
-		if ((i + 1) % imgWidth == 0 || i == arraySize - imgWidth)
+		if ((i + 1) % imgWidth == 0 || i == startingIndex)
 		{
 			minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], REALLY_BIG_NUM });
 		}
@@ -200,5 +201,75 @@ void Image::WriteImageDebug(std::string filename, double* forArray)
 		outArray[i] = static_cast<uint8_t>(forArray[i] < 0 ? 0 : forArray[i]) * 3;
 	}
 	stbi_write_png(filename.c_str(), imgWidth, imgHeight, 1, outArray.data(), 0);
+}
+
+void Image::RemoveSeam()
+{
+	for (int i = 0; i < numOfPixels; ++i)
+	{
+		CalculateGradient();
+		CalculateCumulativeEnergy(); 
+
+		std::vector<int> indexesToRemoeve = FindMinPath();
+
+		// Problem 
+
+
+
+
+		// Update array size and img width
+		--imgWidth;
+		arraySize = imgHeight * imgWidth; 
+		ResetPixelValues(); 
+	}
+}
+
+std::vector<int> Image::FindMinPath()
+{
+	std::vector<int> indexesToRemove(imgHeight);
+
+	// Find value in top row with lowest cumulative energy 	
+	double* minValue = std::min_element(energyArray, energyArray + imgWidth);
+	size_t indexToRemove = minValue - energyArray;
+	indexesToRemove[0] = indexToRemove;
+
+	// Loop thru one column 
+	for (int i = 1; i < imgHeight; ++i)
+	{
+		// Get index neighbors 
+		int indexC = indexToRemove + imgWidth;
+		int indexL = indexC - 1;
+		int indexR = indexC + 1;
+
+		int selectedIndex = -1;
+
+		// Right pixel border 
+		if ((i + 1) % imgWidth == 0)
+		{
+			selectedIndex = cumulativeEnergyArray[indexC] > cumulativeEnergyArray[indexL] ? indexL : indexC;
+		}
+		// Left pixel border 
+		else if ((i - 1) % imgWidth == 0)
+		{
+			selectedIndex = cumulativeEnergyArray[indexC] > cumulativeEnergyArray[indexR] ? indexR : indexC;
+		}
+		// Center pixel 
+		else
+		{
+			if (cumulativeEnergyArray[indexC] < cumulativeEnergyArray[indexR] && cumulativeEnergyArray[indexC] < cumulativeEnergyArray[indexL])
+			{
+				selectedIndex = indexC;
+			}
+			else
+			{
+				selectedIndex = cumulativeEnergyArray[indexR] > cumulativeEnergyArray[indexL] ? indexL : indexR;
+			}
+		}
+
+		// Pixel with min value is selected 
+		indexToRemove = selectedIndex;
+		indexesToRemove[i] = indexToRemove;
+	}
+	return indexesToRemove; 
 }
 

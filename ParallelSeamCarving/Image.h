@@ -106,6 +106,9 @@ private:
 	// Helper function for showing debug images 
 	void WriteImageDebug(std::string filename, double* forArray);
 
+	void RemoveSeam(); 
+	std::vector<int> FindMinPath();
+
 private:
 	int imgWidth = 0;
 	int imgHeight = 0;
@@ -115,7 +118,7 @@ private:
 	const int numOfPixels; 
 
 	// Pointers to dynamic arrays 
-	Pixel* pixelArray = nullptr; 	
+	Pixel* pixelArray = nullptr;
 	double* energyArray = nullptr; 
 	double* cumulativeEnergyArray = nullptr;
 
