@@ -5,36 +5,44 @@
 
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include <algorithm>
 #include <omp.h>
 
+const int Image::dx[NUM_PIXEL_NEIGHB] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+const int Image::dy[NUM_PIXEL_NEIGHB] = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
 Image::Image(std::string filename, int numOfPixels) : numOfPixels(numOfPixels)
 {
-	imgArray = Image::LoadImage(filename, imgWidth, imgHeight, channelsNum, arraySize);
-	assert(imgArray);
+	LoadImage(filename, imgWidth, imgHeight, channelsNum, arraySize);
+	assert(pixelArray);
+
+	energyArray = new double[arraySize]; 
+	cumulativeEnergyArray = new double[arraySize]; 
 }
 
 Image::~Image()
 {
-	delete[] imgArray; 
+	// Relese memory 
+	delete[] pixelArray; 
+	delete[] energyArray;
+	delete[] cumulativeEnergyArray; 
 }
 
-/*static*/ Pixel* Image::LoadImage(std::string filename, int& outWidth, int& outHeight, int& outChannelNum, int& outArraySize)
+void Image::LoadImage(std::string filename, int& outWidth, int& outHeight, int& outChannelNum, int& outArraySize)
 {
-	uint8_t* loadedImage = stbi_load(filename.c_str(), &outWidth, &outHeight, &outChannelNum, 0);
+	uint8_t* loadedImage = stbi_load(filename.c_str(), &outWidth, &outHeight, &outChannelNum, NUM_DESIRED_CH);
 	outArraySize = outWidth * outHeight;
 
-	// Allocate dynamic array
-	Pixel* imageArray = new Pixel[outArraySize];
+	// Allocate dynamic memory for array
+	pixelArray = new Pixel[outArraySize];
 	
+	#pragma omp parallel for
 	for (int i = 0; i < outArraySize; ++i)
 	{
 		int pixelIndex = i * outChannelNum;
 		Pixel pixel(loadedImage[pixelIndex], loadedImage[pixelIndex + 1], loadedImage[pixelIndex + 2], outChannelNum == 4 ? loadedImage[pixelIndex + 3] : 255);
-		imageArray[i] = pixel;
-	}
-
-	return imageArray;
+		pixelArray[i] = pixel;
+	}	
 }
 
 void Image::WriteImage(std::string filename)
@@ -43,13 +51,13 @@ void Image::WriteImage(std::string filename)
 
 	for (int i = 0, j = 0; i < arraySize; ++i, j += channelsNum)
 	{
-		outArray[j] = imgArray[i].R;
-		outArray[j + 1] = imgArray[i].G;
-		outArray[j + 2] = imgArray[i].B;
+		outArray[j] = pixelArray[i].R;
+		outArray[j + 1] = pixelArray[i].G;
+		outArray[j + 2] = pixelArray[i].B;
 
 		if (channelsNum == 4)
 		{
-			outArray[j + 3] = imgArray[i].A;
+			outArray[j + 3] = pixelArray[i].A;
 		}
 	}
 
@@ -67,39 +75,75 @@ void Image::ShowGradientImage(std::string filename)
 	CalculateGradient(); 
 	TIMER_END; 
 
-	std::vector<uint8_t> outArray(arraySize);
+	WriteImageDebug(filename, energyArray); 
+}
 
-	for (int i = 0; i < arraySize; ++i)
-	{
-		outArray[i] = imgArray[i].Energy;		
-	}
-	
-	stbi_write_png(filename.c_str(), imgWidth, imgHeight, 1, outArray.data(), 0);
+void Image::ShowCumulativeEnergyImage(std::string filename)
+{
+	TIMER_START;
+	CalculateCumulativeEnergy();
+	TIMER_END;
+
+	WriteImageDebug(filename, cumulativeEnergyArray); 
 }
 
 void Image::CalculateGradient()
 {
+	// Each thread takes a pixel
 	#pragma omp parallel for
 	for (int i = 0; i < arraySize; ++i)
 	{
-		// each thread will take x pixel and:
-		// get its 8 neighbours
-		// calculate gradient x and y
-
-		// Each thread takes a pixel
-
 		// Gets its 8 neighbors
-		std::vector<Pixel> pixelNeihgbors = GetPixelNeighbors(imgArray[i], i); 
+		std::vector<Pixel> pixelNeighbors = GetPixelNeighbors(i);
 		
 		// Calculates gradient 
-		Pixel gradX = CalculateGradientX(pixelNeihgbors); 
-		Pixel gradY = CalculateGradientY(pixelNeihgbors); 
+		Pixel gradX = CalculateGradientX(pixelNeighbors);
+		Pixel gradY = CalculateGradientY(pixelNeighbors);
 
+		// Calcualtes pixel energy
 		double energy = CalculateEnergy(gradX, gradY); 
 
-		imgArray[i].Energy = static_cast<uint8_t>( energy < 0 ? 0 : energy);
-
+		// Stores it in energy array
+		energyArray[i] = energy; 
 	}	
+}
+
+void Image::CalculateCumulativeEnergy()
+{
+	// Copy first row values directly 
+	for (int i = arraySize; i >= arraySize - imgWidth; --i)
+	{
+		cumulativeEnergyArray[i] = energyArray[i]; 
+	}
+
+	// The rest is caculated
+	for (int i = arraySize - imgWidth; i >= 0; --i)
+	{
+		int indexC = i + imgWidth;
+		int indexL = indexC - 1;
+		int indexR = indexC + 1;
+
+		double minValue; 
+
+		// Right pixel border 
+		if ((i + 1) % imgWidth == 0 || i == arraySize - imgWidth)
+		{
+			minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], REALLY_BIG_NUM });
+		}
+		// Left pixel border 
+		else if ((i - 1) % imgWidth == 0 || i == 0)
+		{
+			minValue = std::min({ cumulativeEnergyArray[indexC], REALLY_BIG_NUM, cumulativeEnergyArray[indexR] });
+		}
+		// Center pixel 
+		else
+		{
+			minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], cumulativeEnergyArray[indexR] });
+		}		 
+
+		// Sum with previous row min value
+		cumulativeEnergyArray[i] = energyArray[i] + minValue;
+	}
 }
 
 Pixel Image::CalculateGradientX(std::vector<Pixel> pixelNeighbors)
@@ -117,32 +161,44 @@ Pixel Image::CalculateGradientY(std::vector<Pixel> pixelNeighbors)
 double Image::CalculateEnergy(Pixel& gradX, Pixel& gradY)
 {
 	Pixel SquaredSummed = gradX * gradX + gradY * gradY;
-	return (std::sqrt(SquaredSummed.computeR) + std::sqrt(SquaredSummed.computeG) + std::sqrt(SquaredSummed.computeB)) / 3 ;	
+	return (std::sqrt(SquaredSummed.computeR) + std::sqrt(SquaredSummed.computeG) + std::sqrt(SquaredSummed.computeB)) / channelsNum;
 }
 
-std::vector<Pixel> Image::GetPixelNeighbors(Pixel& ForPixel, int index)
+std::vector<Pixel> Image::GetPixelNeighbors(const int index)
 {
-	std::vector<Pixel> neighbors;
+	std::vector<Pixel> neighbors(NUM_PIXEL_NEIGHB);
 
+	// Get position of index in 2D array 
 	int x = index % imgWidth;
 	int y = index / imgWidth; 
 
-	for (int i = 0; i < 8; ++i)
+	for (int i = 0; i < NUM_PIXEL_NEIGHB; ++i)
 	{
 		int nx = x + dx[i];
 		int ny = y + dy[i]; 
 		int neighborIndex = ny * imgWidth + nx;
 
-		if (nx >= 0 && nx < imgWidth && ny >= 0 && ny < imgHeight) 
-		{
-			neighbors.push_back(imgArray[neighborIndex]);
-		}
-		else
-		{
-			// else push back yourself 
-			neighbors.push_back(imgArray[index]);
-		}
+		neighbors[i] = (nx >= 0 && nx < imgWidth && ny >= 0 && ny < imgHeight) ? pixelArray[neighborIndex] : pixelArray[index]; 		
 	}
 	return neighbors;
+}
+
+void Image::ResetPixelValues()
+{
+	for (int i = 0; i < arraySize; ++i)
+	{
+		pixelArray[i].Reset(); 
+	}
+}
+
+void Image::WriteImageDebug(std::string filename, double* forArray)
+{
+	assert(forArray);
+	std::vector<uint8_t> outArray(arraySize);
+	for (int i = 0; i < arraySize; ++i)
+	{
+		outArray[i] = static_cast<uint8_t>(forArray[i] < 0 ? 0 : forArray[i]) * 3;
+	}
+	stbi_write_png(filename.c_str(), imgWidth, imgHeight, 1, outArray.data(), 0);
 }
 

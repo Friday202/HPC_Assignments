@@ -35,7 +35,9 @@ int main(int argc, char* argv[])
 	image->DisplayInformation(); 
 	//image->WriteImage(absoluteImgPath + "_ImgOut.png");
 	image->ShowGradientImage(absoluteImgPath + "_Gradient.png");
+	image->ShowCumulativeEnergyImage(absoluteImgPath + "_CumulativeEnergy.png");
 
+	// Release memory 
 	delete image; 
 
 	return 0; 
