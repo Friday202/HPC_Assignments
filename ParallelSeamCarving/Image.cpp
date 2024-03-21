@@ -46,7 +46,8 @@ void Image::LoadImage(std::string filename, int& outWidth, int& outHeight, int& 
 }
 
 void Image::WriteImage(std::string filename)
-{
+{	
+	arraySize = imgHeight * imgWidth; 
 	std::vector<uint8_t> outArray(arraySize * channelsNum);
 
 	for (int i = 0, j = 0; i < arraySize; ++i, j += channelsNum)
@@ -111,13 +112,13 @@ void Image::CalculateGradient()
 void Image::CalculateCumulativeEnergy()
 {
 	// Copy first row values directly 
-	for (int i = arraySize; i >= arraySize - imgWidth; --i)
+	for (int i = arraySize - 1; i >= arraySize - imgWidth; --i)
 	{
 		cumulativeEnergyArray[i] = energyArray[i]; 
 	}
 
 	// The rest is caculated
-	int startingIndex = arraySize - imgWidth; // ???  -1 ??? ;
+	int startingIndex = arraySize - imgWidth - 1; 
 	for (int i = startingIndex; i >= 0; --i)
 	{
 		int indexC = i + imgWidth;
@@ -127,12 +128,12 @@ void Image::CalculateCumulativeEnergy()
 		double minValue; 
 
 		// Right pixel border 
-		if ((i + 1) % imgWidth == 0 || i == startingIndex)
+		if ((i + 1) % imgWidth == 0)
 		{
 			minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], REALLY_BIG_NUM });
 		}
 		// Left pixel border 
-		else if ((i - 1) % imgWidth == 0 || i == 0)
+		else if (i % imgWidth == 0 || i == 0)
 		{
 			minValue = std::min({ cumulativeEnergyArray[indexC], REALLY_BIG_NUM, cumulativeEnergyArray[indexR] });
 		}
@@ -211,15 +212,32 @@ void Image::RemoveSeam()
 		CalculateCumulativeEnergy(); 
 
 		std::vector<int> indexesToRemoeve = FindMinPath();
+		assert(indexesToRemoeve.size() == imgHeight);
 
-		// Problem 
+		Pixel* newPixelArray = new Pixel[imgHeight * (imgWidth - 1)];
 
-
-
+		// For each row 
+		for (int i = 0; i < indexesToRemoeve.size(); ++i)
+		{
+			int startingIndex = i * imgWidth; 
+			int endingIndex = startingIndex + imgWidth; 
+			RemovePixel(indexesToRemoeve[i], newPixelArray, startingIndex, endingIndex);
+		}
 
 		// Update array size and img width
 		--imgWidth;
-		arraySize = imgHeight * imgWidth; 
+		arraySize = imgHeight * imgWidth;		
+
+		delete[] pixelArray;
+		delete[] energyArray;
+		delete[] cumulativeEnergyArray;
+
+		pixelArray = newPixelArray;
+		energyArray = new double[arraySize]; 
+		cumulativeEnergyArray = new double[arraySize];
+		
+		std::cout << "Called"; 
+		
 		ResetPixelValues(); 
 	}
 }
@@ -271,5 +289,18 @@ std::vector<int> Image::FindMinPath()
 		indexesToRemove[i] = indexToRemove;
 	}
 	return indexesToRemove; 
+}
+
+void Image::RemovePixel(int atIndex, Pixel* newArray, int startingIndex, int endingIndex)
+{
+	static int k = 0; 
+	for (int i = startingIndex; i < endingIndex; ++i)
+	{
+		if (i == atIndex) continue; 
+		newArray[k] = pixelArray[i];
+		++k; 
+	}
+	if (endingIndex == arraySize)
+		k = 0; 	
 }
 

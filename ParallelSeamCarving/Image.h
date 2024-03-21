@@ -89,6 +89,8 @@ public:
 	/* Calculate and save cumulative energy image - debug only */
 	void ShowCumulativeEnergyImage(std::string filename); 
 
+	void RemoveSeam();
+
 private:
 	void CalculateGradient(); 
 	void CalculateCumulativeEnergy(); 
@@ -105,9 +107,9 @@ private:
 
 	// Helper function for showing debug images 
 	void WriteImageDebug(std::string filename, double* forArray);
-
-	void RemoveSeam(); 
+	
 	std::vector<int> FindMinPath();
+	void RemovePixel(int atIndex, Pixel* newArray, int startingIndex, int endingIndex);
 
 private:
 	int imgWidth = 0;

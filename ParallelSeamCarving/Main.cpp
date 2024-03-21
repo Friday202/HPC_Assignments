@@ -6,7 +6,7 @@
 
 /*
 * input arguments are: filename to image and reduction of pixels for width only
-* example: \Images\720x480.png 12
+* example: \Images\720x480.png 80
 */
 
 int main(int argc, char* argv[])
@@ -21,8 +21,8 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Not enough input arguments.");
 		}
 		std::string relativeImgPath = argv[1];	
-		numOfPixels = reinterpret_cast<int>(argv[2]); 
-
+		numOfPixels = std::stoi(argv[2]);
+		 
 		// Get the current path and form absolute path
 		absoluteImgPath = std::filesystem::current_path().string() + relativeImgPath;
 	}
@@ -33,9 +33,12 @@ int main(int argc, char* argv[])
 
 	Image* image = new Image(absoluteImgPath, numOfPixels);
 	image->DisplayInformation(); 
-	//image->WriteImage(absoluteImgPath + "_ImgOut.png");
-	image->ShowGradientImage(absoluteImgPath + "_Gradient.png");
-	image->ShowCumulativeEnergyImage(absoluteImgPath + "_CumulativeEnergy.png");
+	
+	//image->ShowGradientImage(absoluteImgPath + "_Gradient.png");
+	//image->ShowCumulativeEnergyImage(absoluteImgPath + "_CumulativeEnergy.png");	
+
+	image->RemoveSeam(); 
+	image->WriteImage(absoluteImgPath + "_ImgOut.png");
 
 	// Release memory 
 	delete image; 
