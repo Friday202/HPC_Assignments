@@ -74,7 +74,7 @@ void Image::ShowGradientImage(std::string filename)
 {
 	TIMER_START; 
 	CalculateEnergy(); 
-	//TIMER_END; 
+	TIMER_SECTION("Debug");
 
 	WriteImageDebug(filename, energyArray); 
 }
@@ -83,7 +83,7 @@ void Image::ShowCumulativeEnergyImage(std::string filename)
 {
 	TIMER_START;
 	CalculateCumulativeEnergy();
-	//TIMER_END;
+	TIMER_SECTION("Debug");
 
 	WriteImageDebug(filename, cumulativeEnergyArray); 
 }
@@ -229,15 +229,11 @@ void Image::RemoveSeam()
 
 		// 1. Step calculate energy 
 		CalculateEnergy();
-
-		TIMER_END("energy");
-		RESET_TIMER;
+		TIMER_SECTION("energy");
 
 		// 2. Step calculate cumulative energy 
 		CalculateCumulativeEnergy(); 
-
-		TIMER_END("cumulative energy");
-		RESET_TIMER;
+		TIMER_SECTION("cumulative energy");
 
 		// 3. Step remove 1 pixel column from image 
 		std::vector<int> indexesToRemove = FindMinPath();
@@ -250,16 +246,14 @@ void Image::RemoveSeam()
 			--arraySize; 
 		}
 
-		TIMER_END("seam removal");
-		RESET_TIMER;
+		TIMER_SECTION("seam removal");
 
 		// 4. Step update values
 		--imgWidth;
 		arraySize = imgHeight * imgWidth;
 		ResetPixelValues();		
 
-		TIMER_END("reseting values");
-		RESET_TIMER;
+		TIMER_SECTION("reseting values");
 	}	
 }
 
