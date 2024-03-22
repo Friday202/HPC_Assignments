@@ -50,7 +50,7 @@ void Image::WriteImage(std::string filename)
 	arraySize = imgHeight * imgWidth; 
 	std::vector<uint8_t> outArray(arraySize * channelsNum);
 
-	for (int i = 0, j = 0; i < arraySize; ++i, j += channelsNum)
+	for (size_t i = 0, j = 0; i < arraySize; ++i, j += channelsNum)
 	{
 		outArray[j] = pixelArray[i].R;
 		outArray[j + 1] = pixelArray[i].G;
@@ -73,7 +73,7 @@ void Image::DisplayInformation()
 void Image::ShowGradientImage(std::string filename)
 {
 	TIMER_START; 
-	CalculateGradient(); 
+	CalculateEnergy(); 
 	TIMER_END; 
 
 	WriteImageDebug(filename, energyArray); 
@@ -88,7 +88,7 @@ void Image::ShowCumulativeEnergyImage(std::string filename)
 	WriteImageDebug(filename, cumulativeEnergyArray); 
 }
 
-void Image::CalculateGradient()
+void Image::CalculateEnergy()
 {
 	// Each thread takes a pixel
 	#pragma omp parallel for
@@ -98,11 +98,11 @@ void Image::CalculateGradient()
 		std::vector<Pixel> pixelNeighbors = GetPixelNeighbors(i);
 		
 		// Calculates gradient 
-		Pixel gradX = CalculateGradientX(pixelNeighbors);
-		Pixel gradY = CalculateGradientY(pixelNeighbors);
+		Vector3 gradX = CalculateGradientX(pixelNeighbors);
+		Vector3 gradY = CalculateGradientY(pixelNeighbors);
 
 		// Calcualtes pixel energy
-		double energy = CalculateEnergy(gradX, gradY); 
+		double energy = GetEnergy(gradX, gradY); 
 
 		// Stores it in energy array
 		energyArray[i] = energy; 
@@ -148,22 +148,33 @@ void Image::CalculateCumulativeEnergy()
 	}
 }
 
-Pixel Image::CalculateGradientX(std::vector<Pixel> pixelNeighbors)
-{
-	assert(pixelNeighbors.size() == 8); 
-	return pixelNeighbors[7] - pixelNeighbors[0] - pixelNeighbors[1] * 2 - pixelNeighbors[2]+ pixelNeighbors[5] + pixelNeighbors[6] * 2;
-}
-
-Pixel Image::CalculateGradientY(std::vector<Pixel> pixelNeighbors)
+Vector3 Image::CalculateGradientX(std::vector<Pixel> pixelNeighbors)
 {
 	assert(pixelNeighbors.size() == 8);
-	return pixelNeighbors[0] + pixelNeighbors[3] * 2 + pixelNeighbors[5] - pixelNeighbors[2] - pixelNeighbors[4] * 2 - pixelNeighbors[7];
+
+	Vector3 vec; 
+	vec.X = pixelNeighbors[7].computeR - pixelNeighbors[0].computeR - pixelNeighbors[1].computeR * 2 - pixelNeighbors[2].computeR + pixelNeighbors[5].computeR + pixelNeighbors[6].computeR * 2;
+	vec.Y = pixelNeighbors[7].computeG - pixelNeighbors[0].computeG - pixelNeighbors[1].computeG * 2 - pixelNeighbors[2].computeG + pixelNeighbors[5].computeG + pixelNeighbors[6].computeG * 2;
+	vec.Z = pixelNeighbors[7].computeB - pixelNeighbors[0].computeB - pixelNeighbors[1].computeB * 2 - pixelNeighbors[2].computeB + pixelNeighbors[5].computeB + pixelNeighbors[6].computeB * 2;
+
+	return vec; 	
 }
 
-double Image::CalculateEnergy(Pixel& gradX, Pixel& gradY)
+Vector3 Image::CalculateGradientY(std::vector<Pixel> pixelNeighbors)
 {
-	Pixel SquaredSummed = gradX * gradX + gradY * gradY;
-	return (std::sqrt(SquaredSummed.computeR) + std::sqrt(SquaredSummed.computeG) + std::sqrt(SquaredSummed.computeB)) / channelsNum;
+	assert(pixelNeighbors.size() == 8);
+
+	Vector3 vec;
+	vec.X = pixelNeighbors[0].computeR + pixelNeighbors[3].computeR * 2 + pixelNeighbors[5].computeR - pixelNeighbors[2].computeR - pixelNeighbors[4].computeR * 2 - pixelNeighbors[7].computeR;
+	vec.Y = pixelNeighbors[0].computeG + pixelNeighbors[3].computeG * 2 + pixelNeighbors[5].computeG - pixelNeighbors[2].computeG - pixelNeighbors[4].computeG * 2 - pixelNeighbors[7].computeG;
+	vec.Z = pixelNeighbors[0].computeB + pixelNeighbors[3].computeB * 2 + pixelNeighbors[5].computeB - pixelNeighbors[2].computeB - pixelNeighbors[4].computeB * 2 - pixelNeighbors[7].computeB;
+	return vec; 
+}
+
+double Image::GetEnergy(Vector3& gradX, Vector3& gradY)
+{
+	Vector3 SquaredSummed = gradX * gradX + gradY * gradY; 
+	return (std::sqrt(SquaredSummed.X) + std::sqrt(SquaredSummed.Y) + std::sqrt(SquaredSummed.Z)) / channelsNum;	
 }
 
 std::vector<Pixel> Image::GetPixelNeighbors(const int index)
@@ -187,6 +198,7 @@ std::vector<Pixel> Image::GetPixelNeighbors(const int index)
 
 void Image::ResetPixelValues()
 {
+	#pragma omp parallel for
 	for (int i = 0; i < arraySize; ++i)
 	{
 		pixelArray[i].Reset(); 
@@ -206,40 +218,39 @@ void Image::WriteImageDebug(std::string filename, double* forArray)
 
 void Image::RemoveSeam()
 {
+	TIMER_START; 
+
+	// Main code for seam removal - this must be sequentinoal 
 	for (int i = 0; i < numOfPixels; ++i)
 	{
-		CalculateGradient();
+#if DEBUG_MODE
+		std::cout << "Removing " << i + 1 << ". seam... " << std::endl; 
+#endif
+
+		// 1. Step calculate energy 
+		CalculateEnergy();
+
+		// 2. Step calculate cumulative energy 
 		CalculateCumulativeEnergy(); 
 
-		std::vector<int> indexesToRemoeve = FindMinPath();
-		assert(indexesToRemoeve.size() == imgHeight);
+		// 3. Step remove 1 pixel column from image 
+		std::vector<int> indexesToRemove = FindMinPath();
+		assert(indexesToRemove.size() == imgHeight);
 
-		Pixel* newPixelArray = new Pixel[imgHeight * (imgWidth - 1)];
-
-		// For each row 
-		for (int i = 0; i < indexesToRemoeve.size(); ++i)
+		for (int i = 0, shift = 0; i < indexesToRemove.size(); ++i)
 		{
-			int startingIndex = i * imgWidth; 
-			int endingIndex = startingIndex + imgWidth; 
-			RemovePixel(indexesToRemoeve[i], newPixelArray, startingIndex, endingIndex);
+			indexesToRemove[i] -= shift++; 
+			ShiftPixelArray(indexesToRemove[i], arraySize); 
+			--arraySize; 
 		}
 
-		// Update array size and img width
+		// 4. Step update values
 		--imgWidth;
-		arraySize = imgHeight * imgWidth;		
-
-		delete[] pixelArray;
-		delete[] energyArray;
-		delete[] cumulativeEnergyArray;
-
-		pixelArray = newPixelArray;
-		energyArray = new double[arraySize]; 
-		cumulativeEnergyArray = new double[arraySize];
-		
-		std::cout << "Called"; 
-		
-		ResetPixelValues(); 
+		arraySize = imgHeight * imgWidth;
+		ResetPixelValues();		
 	}
+
+	TIMER_END; 
 }
 
 std::vector<int> Image::FindMinPath()
@@ -291,16 +302,10 @@ std::vector<int> Image::FindMinPath()
 	return indexesToRemove; 
 }
 
-void Image::RemovePixel(int atIndex, Pixel* newArray, int startingIndex, int endingIndex)
+void Image::ShiftPixelArray(int index, int size)
 {
-	static int k = 0; 
-	for (int i = startingIndex; i < endingIndex; ++i)
+	for (int i = index; i < size - 1; ++i)
 	{
-		if (i == atIndex) continue; 
-		newArray[k] = pixelArray[i];
-		++k; 
+		pixelArray[i] = pixelArray[i + 1]; 
 	}
-	if (endingIndex == arraySize)
-		k = 0; 	
 }
-

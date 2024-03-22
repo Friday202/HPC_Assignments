@@ -31,42 +31,35 @@ struct Pixel
 	uint8_t  B;
 	uint8_t  A;
 
-	uint8_t Energy = 0;
-	uint8_t CumulativeEnergy = 0;
-
 	double  computeR;
 	double  computeG;
 	double  computeB;
 
-	// Call this on all pixels after removing first pixel column 
+	// Call this on all pixels after removing pixel column 
 	void Reset()
 	{
 		computeR = R; 
 		computeG = G;
 		computeB = B;
 	}
-
-	Pixel operator +(const Pixel& other) const
-	{
-		return Pixel(this->computeR + other.computeR, this->computeG + other.computeG, this->computeB + other.computeB, this->A);
-	}
-
-	Pixel operator -(const Pixel& other) const
-	{
-		return Pixel(this->computeR - other.computeR, this->computeG - other.computeG, this->computeB - other.computeB, this->A);
-	}
-
-	Pixel operator *(const int& other) const
-	{
-		return Pixel(this->computeR * other, this->computeG * other, this->computeB * other, this->A);
-	}
-	
-	Pixel operator * (const Pixel& other) const
-	{
-		return Pixel(this->computeR * other.computeR, this->computeG * other.computeG, this->computeB * other.computeB, this->A);
-	}
 };
 
+struct Vector3
+{
+	Vector3() = default; 
+	Vector3(double X, double Y, double Z) : X(X), Y(Y), Z(Z) {}
+	double X, Y, Z; 
+
+	Vector3 operator * (const Vector3& other) const
+	{
+		return Vector3(this->X * other.X, this->Y * other.Y, this->Z * other.Z);
+	}
+
+	Vector3 operator +(const Vector3& other) const
+	{
+		return Vector3(this->X + other.X, this->Y + other.Y, this->Z + other.Z);
+	}
+};
 
 class Image
 {
@@ -89,27 +82,30 @@ public:
 	/* Calculate and save cumulative energy image - debug only */
 	void ShowCumulativeEnergyImage(std::string filename); 
 
+	/* Main function to remove semas */
 	void RemoveSeam();
 
 private:
-	void CalculateGradient(); 
+	void CalculateEnergy(); 
 	void CalculateCumulativeEnergy(); 
 	
-	Pixel CalculateGradientX(std::vector<Pixel> pixelNeighbors);
-	Pixel CalculateGradientY(std::vector<Pixel> pixelNeighbors);	
+	Vector3 CalculateGradientX(std::vector<Pixel> pixelNeighbors);
+	Vector3 CalculateGradientY(std::vector<Pixel> pixelNeighbors);
 
-	double CalculateEnergy(Pixel& gradX, Pixel& gradY);
+	double GetEnergy(Vector3& gradX, Vector3& gradY);
+	std::vector<int> FindMinPath();
 
+	/* Returns vector (array) of 8 neighbouring pixels */
 	std::vector<Pixel> GetPixelNeighbors(const int index);
 
-	// Call after removing pixel column 
+	/* Call after removing pixel column */
 	void ResetPixelValues(); 
-
-	// Helper function for showing debug images 
+	  
+	/* Helper function for showing debug images */
 	void WriteImageDebug(std::string filename, double* forArray);
-	
-	std::vector<int> FindMinPath();
-	void RemovePixel(int atIndex, Pixel* newArray, int startingIndex, int endingIndex);
+
+	/* Shifts all pixes after index in pixel array*/
+	void ShiftPixelArray(int index, int size);
 
 private:
 	int imgWidth = 0;
@@ -117,6 +113,8 @@ private:
 	int channelsNum = 0;
 
 	int arraySize = 0; 
+
+	// User-specified number of pixel columns to remove from input image
 	const int numOfPixels; 
 
 	// Pointers to dynamic arrays 
