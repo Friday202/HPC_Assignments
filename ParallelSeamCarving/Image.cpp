@@ -126,7 +126,7 @@ void Image::CalculateCumulativeEnergy()
 		int indexR = indexC + 1;
 
 		double minValue; 
-
+				
 		// Right pixel border 
 		if ((i + 1) % imgWidth == 0)
 		{
@@ -258,11 +258,11 @@ std::vector<int> Image::FindMinPath()
 	std::vector<int> indexesToRemove(imgHeight);
 
 	// Find value in top row with lowest cumulative energy 	
-	double* minValue = std::min_element(energyArray, energyArray + imgWidth);
-	size_t indexToRemove = minValue - energyArray;
+	double* minValue = std::min_element(cumulativeEnergyArray, cumulativeEnergyArray + imgWidth);
+	size_t indexToRemove = minValue - cumulativeEnergyArray;
 	indexesToRemove[0] = indexToRemove;
 
-	// Loop thru one column 
+	// Loop thru one column -> so each row 
 	for (int i = 1; i < imgHeight; ++i)
 	{
 		// Get index neighbors 
