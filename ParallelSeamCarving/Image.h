@@ -5,13 +5,16 @@
 #include <iostream>
 #include <chrono>
 
+
+
 #define TIMER_START \
     auto start_time = std::chrono::high_resolution_clock::now();
 
-#define TIMER_END \
-    auto end_time = std::chrono::high_resolution_clock::now(); \
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time); \
-    std::cout << "Time taken: " << duration.count() << " milliseconds" << std::endl;
+#define TIMER_END(section) \
+    std::cout << "Time taken for " << section << " :" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << " milliseconds" << std::endl;
+
+#define RESET_TIMER \
+	start_time = std::chrono::high_resolution_clock::now(); 
 
 #define NUM_PIXEL_NEIGHB 8
 #define NUM_DESIRED_CH 0
