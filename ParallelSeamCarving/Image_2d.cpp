@@ -1,5 +1,3 @@
-#include "Image.h"
-
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
@@ -15,7 +13,7 @@
 #include <algorithm>
 #include <omp.h>
 
-Pixel** loadImage(const std::string& filename, int& imgWidth, int& imgHeight, int& channelsNum)
+Pixel** loadImage(const std::string& filename, int& imgWidth, int& imgHeight, int& channelsNum, int threads)
 {
     uint8_t* loadedImage = stbi_load(filename.c_str(), &imgWidth, &imgHeight, &channelsNum, STBI_rgb_alpha);
 
@@ -32,7 +30,7 @@ Pixel** loadImage(const std::string& filename, int& imgWidth, int& imgHeight, in
     }
 
     // Copy pixel data from loaded image to pixelArray
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(threads)
     for (int i = 0; i < imgHeight; ++i) {
         for (int j = 0; j < imgWidth; ++j) {
             int pixelIndex = (i * imgWidth + j) * 4;
@@ -46,13 +44,13 @@ Pixel** loadImage(const std::string& filename, int& imgWidth, int& imgHeight, in
     return pixelArray; // Return the dynamically allocated pixelArray
 }
 
-void writeImage(const std::string& filename, Pixel** pixelArray , int imgWidth, int imgHeight, int channelsNum)
+void writeImage(const std::string& filename, Pixel** pixelArray , int imgWidth, int imgHeight, int channelsNum, int threads)
 {
     // Allocate memory for the image data
     uint8_t* imageData = new uint8_t[imgWidth * imgHeight * channelsNum];
 
     // Copy pixel data from pixelArray to imageData
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(threads)
     for (int i = 0; i < imgHeight; ++i) {
         for (int j = 0; j < imgWidth; ++j) {
             int pixelIndex = (i * imgWidth + j) * channelsNum;
@@ -102,14 +100,14 @@ std::vector<Pixel> getPixelNeighbors(Pixel** pixelArray, int x, int y, int imgWi
     return neighbors;
 }
 
-unsigned short** calculateEnergy(Pixel** pixelArray, int imgWidth, int imgHeight, int channelsNum) {
+unsigned short** calculateEnergy(Pixel** pixelArray, int imgWidth, int imgHeight, int channelsNum, int threads) {
     unsigned short** energyArray = new unsigned short*[imgHeight];
     for (int i = 0; i < imgHeight; ++i) {
         energyArray[i] = new unsigned short[imgWidth]();
     }
 
     for (int y = 0; y < imgHeight; ++y) {
-        #pragma omp parallel for num_threads(32)
+        #pragma omp parallel for num_threads(threads)
         for (int x = 0; x < imgWidth; ++x) {
             std::vector<Pixel> pixelNeighbors = getPixelNeighbors(pixelArray, x, y, imgWidth, imgHeight);
 
@@ -130,13 +128,13 @@ unsigned short** calculateEnergy(Pixel** pixelArray, int imgWidth, int imgHeight
 }
 
 
-int** calculateCumulativeEnergy(unsigned short** pixelArray, int imgWidth, int imgHeight, int channelsNum) {
+int** calculateCumulativeEnergy(unsigned short** pixelArray, int imgWidth, int imgHeight, int channelsNum, int ceFirstRowCopyThreads, int ceRowParalelizationThreads) {
     int** energyArray = new int*[imgHeight];
     for (int i = 0; i < imgHeight; ++i) {
         energyArray[i] = new int[imgWidth]();
     }
     // Copy the last row of the energy array
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(ceFirstRowCopyThreads)
     for (int x = 0; x < imgWidth; ++x) {
         energyArray[imgHeight - 1][x] = pixelArray[imgHeight - 1][x];
     }
@@ -144,7 +142,7 @@ int** calculateCumulativeEnergy(unsigned short** pixelArray, int imgWidth, int i
     // Calculate the cumulative energy from bottom to top
     for (int y = imgHeight - 2; y >= 0; --y) {
         //fill the pixels between the first and last pixel of the row
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(ceRowParalelizationThreads)
         for (int x = 1; x < imgWidth - 1; ++x) {
             int minEnergy = energyArray[y + 1][x - 1];
             int temp = std::min(minEnergy, energyArray[y + 1][x]);
@@ -188,9 +186,9 @@ unsigned short* findSeamBasic(int** cumulativeEnergyArray, int imgWidth, int img
     return seam;
 }
 
-void removeSeam(Pixel** pixelArray, unsigned short* seam, int* imgWidth, int imgHeight) {
+void removeSeam(Pixel** pixelArray, unsigned short* seam, int* imgWidth, int imgHeight, int arrayShiftThreads) {
     // Remove the seam from the image
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(arrayShiftThreads)
     for (int y = 0; y < imgHeight; ++y) {
         for (int x = seam[y]; x < *imgWidth - 1; ++x) {
             pixelArray[y][x] = pixelArray[y][x + 1];
@@ -203,32 +201,90 @@ void removeSeam(Pixel** pixelArray, unsigned short* seam, int* imgWidth, int img
 
 
 
-int main() {
+int main(int argc, char* argv[]) {
     
-    // imput arguments
-    // std::string filename = "Images/4x5";
-    // std::string filename = "Images/20x10";
-    std::string filename = "Images/720x480";
-    // std::string filename = "Images/7680x4320";
-    int numOfPixels = 128;
+    // -------------DEFAULT PARAMETER SETTINGS----------------
+    std::string filename = "720x480.png";
+    int numOfSeams = 128;
+    int loadImageThreads = 5;
+    int energyThreads = 5;
+    int ceFirstRowCopyThreads = 5;
+    int ceRowParalelizationThreads = 5;
+    int arrayShiftThreads = 5;
+    int writeImageThreads = 5;
+    
+    //-------------PARSE COMMAND LINE ARGUMENTS----------------
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " filename numOfSeams [loadImageThreads] [energyThreads] [ceFirstRowCopyThreads] [ceRowParalelizationThreads] [arrayShiftThreads] [writeImageThreads]\n";
+        return 1;
+    }
 
+    filename = argv[1];
+    numOfSeams = std::stoi(argv[2]);
+
+    for (int i = 3; i < argc; ++i) {
+        switch (i) {
+            case 3:
+                loadImageThreads = std::stoi(argv[i]);
+                break;
+            case 4:
+                energyThreads = std::stoi(argv[i]);
+                break;
+            case 5:
+                ceFirstRowCopyThreads = std::stoi(argv[i]);
+                break;
+            case 6:
+                ceRowParalelizationThreads = std::stoi(argv[i]);
+                break;
+            case 7:
+                arrayShiftThreads = std::stoi(argv[i]);
+                break;
+            case 8:
+                writeImageThreads = std::stoi(argv[i]);
+                break;
+            default:
+                std::cerr << "Ignoring extra argument: " << argv[i] << '\n';
+                break;
+        }
+    }
+
+    //-------------MEASUREMENTS----------------
+    auto loadImageTime = 0;
+    auto avgEnergyTime = 0;
+    auto avgCeTime = 0;
+    auto avgSeamTime = 0;
+    auto avgRemoveSeamTime = 0;
+    auto writeImageTime = 0;
+
+    //-----------------FLOW--------------------
     // Load the image
     int imgWidth;
     int imgHeight;
     int channelsNum;
-    Pixel** pixelArray = loadImage(filename + ".png", imgWidth, imgHeight, channelsNum);
-    TIMER_START;
-    for (int i = 0; i < numOfPixels; ++i) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    Pixel** pixelArray = loadImage("Images/" + filename, imgWidth, imgHeight, channelsNum, loadImageThreads);
+    loadImageTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
+    
+    for (int i = 0; i < numOfSeams; ++i) {
         // calculate the energy of the image
-        unsigned short** energyArray = calculateEnergy(pixelArray, imgWidth, imgHeight, channelsNum);
+        auto start_time = std::chrono::high_resolution_clock::now();
+        unsigned short** energyArray = calculateEnergy(pixelArray, imgWidth, imgHeight, channelsNum, energyThreads);
+        avgEnergyTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
 
         //calculate the cumulative energy of the image
-        int** cumulativeEnergyArray = calculateCumulativeEnergy(energyArray, imgWidth, imgHeight, channelsNum);
+        start_time = std::chrono::high_resolution_clock::now();
+        int** cumulativeEnergyArray = calculateCumulativeEnergy(energyArray, imgWidth, imgHeight, channelsNum, ceFirstRowCopyThreads, ceRowParalelizationThreads);
+        avgCeTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
         
+        //find the seam with the minimum energy
+        start_time = std::chrono::high_resolution_clock::now();
         unsigned short* seam = findSeamBasic(cumulativeEnergyArray, imgWidth, imgHeight);
+        avgSeamTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
 
         // remove the seam from the image
-        removeSeam(pixelArray, seam, &imgWidth, imgHeight);
+        start_time = std::chrono::high_resolution_clock::now();
+        removeSeam(pixelArray, seam, &imgWidth, imgHeight, arrayShiftThreads);
+        avgRemoveSeamTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
 
         //release memory
         for (int i = 0; i < imgHeight; ++i) {
@@ -241,7 +297,20 @@ int main() {
         
     }
 
-    writeImage(filename + "_out.png", pixelArray, imgWidth, imgHeight, channelsNum);
+    start_time = std::chrono::high_resolution_clock::now();
+    std::string outFilename = filename.substr(0, filename.find_last_of('.'));
+    writeImage("ImagesOut/" + outFilename + "_out.png", pixelArray, imgWidth, imgHeight, channelsNum, writeImageThreads);
+    writeImageTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
+
+    // print measurements in one line no titles
+    std::cout << loadImageTime << " " << avgEnergyTime / numOfSeams << " " << avgCeTime / numOfSeams << " " << avgSeamTime / numOfSeams << " " << avgRemoveSeamTime / numOfSeams << " " << writeImageTime << std::endl;
+    
+    // Free the dynamically allocated memory
+    for (int i = 0; i < imgHeight; ++i) {
+        delete[] pixelArray[i];
+    }
+    delete[] pixelArray;
+
 
     return 0;
 }
