@@ -72,6 +72,9 @@ public:
 	/* C++ write image to file wrapper for C stlib */
 	void WriteImage(std::string filename);
 
+	/* C++ write image to file wrapper for C stlib */
+	void WriteImageImproved(std::string filename);
+
 	/* Displays basic image information */
 	void DisplayInformation(); 
 
@@ -81,21 +84,31 @@ public:
 	/* Calculate and save cumulative energy image - debug only */
 	void ShowCumulativeEnergyImage(std::string filename); 
 
+	/* Calculate and save cumulative energy image - debug only */
+	void ShowCumulativeEnergyImageImproved(std::string filename);
+
 	/* Main function to remove semas */
 	void RemoveSeam();
 
+	void RemoveSeamImproved(); 
+
 private:
 	void CalculateEnergy(); 
+	void CalculateEnergyParallel(); 
+
 	void CalculateCumulativeEnergy(); 
+	void CalculateCumulativeEnergyParallel(); 
 	
 	Vector3 CalculateGradientX(std::vector<Pixel> pixelNeighbors);
 	Vector3 CalculateGradientY(std::vector<Pixel> pixelNeighbors);
 
 	double GetEnergy(Vector3& gradX, Vector3& gradY);
 	std::vector<int> FindMinPath();
+	std::vector<int> FindMinPathParallel();
 
 	/* Returns vector (array) of 8 neighbouring pixels */
 	std::vector<Pixel> GetPixelNeighbors(const int index);
+	std::vector<Pixel> GetPixelNeighborsImproved(const int indexX, const int indexY);
 
 	/* Call after removing pixel column */
 	void ResetPixelValues(); 
@@ -105,6 +118,10 @@ private:
 
 	/* Shifts all pixes after index in pixel array*/
 	void ShiftPixelArray(int index, int size);
+	void ShiftPixelArrayParallel(int startingIndex, int endingIndex);
+
+
+	std::vector<int> Alo();
 
 private:
 	int imgWidth = 0;
@@ -112,6 +129,9 @@ private:
 	int channelsNum = 0;
 
 	int arraySize = 0; 
+	int originalImgWidth = 0; 
+	int computeWidth = 0; 
+	int lastElement = 0; 
 
 	// User-specified number of pixel columns to remove from input image
 	const int numOfPixels; 

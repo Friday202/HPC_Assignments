@@ -2,7 +2,8 @@
 #include <string>
 #include <filesystem>
 
-#include "Image.h"
+//#include "Image.h"
+#include "ImageSeamCarver.h"
 
 /*
 * input arguments are: filename to image and reduction of pixels for width only
@@ -12,7 +13,7 @@
 int main(int argc, char* argv[])
 {
 	std::string absoluteImgPath;
-	int numOfPixels = 0; 
+	int numOfSeams = 0;
 
 	try
 	{
@@ -21,7 +22,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Not enough input arguments.");
 		}
 		std::string relativeImgPath = argv[1];	
-		numOfPixels = std::stoi(argv[2]);
+		numOfSeams = std::stoi(argv[2]);
 		 
 		// Get the current path and form absolute path
 		absoluteImgPath = std::filesystem::current_path().string() + relativeImgPath;
@@ -31,17 +32,23 @@ int main(int argc, char* argv[])
 		std::cerr << "Caught an exception: " << e.what() << std::endl;
 	}
 
-	Image* image = new Image(absoluteImgPath, numOfPixels);
-	image->DisplayInformation(); 
-	
+	//Image* image = new Image(absoluteImgPath, numOfSeams);
+	//image->DisplayInformation(); 	
 	//image->ShowGradientImage(absoluteImgPath + "_Gradient.png");
 	//image->ShowCumulativeEnergyImage(absoluteImgPath + "_CumulativeEnergy.png");	
+	//image->ShowCumulativeEnergyImageImproved(absoluteImgPath + "_CumulativeEnergyImproved.png");
+	//image->RemoveSeam(); 
+	//image->RemoveSeamImproved();
+	//image->WriteImage(absoluteImgPath + "_ImgOut.png");
+	//image->WriteImageImproved(absoluteImgPath + "_ImgOutNe2w.png");
 
-	image->RemoveSeam(); 
-	image->WriteImage(absoluteImgPath + "_ImgOut.png");
+
+	ImageSeamCarver* imageSC = new ImageSeamCarver(absoluteImgPath, numOfSeams);
+	imageSC->RemoveSeam(); 
+	imageSC->WriteImage(absoluteImgPath + "_ImgOutNew5.png");
 
 	// Release memory 
-	delete image; 
+	delete imageSC; 
 
 	return 0; 
 }

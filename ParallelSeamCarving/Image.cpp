@@ -1,12 +1,13 @@
 #include "Image.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#define STB_IMAGE_IMPLEMENTATION
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include <algorithm>
 #include <omp.h>
+#include <cassert>
 
 const int Image::dx[NUM_PIXEL_NEIGHB] = { -1, 0, 1, -1, 1, -1, 0, 1 };
 const int Image::dy[NUM_PIXEL_NEIGHB] = { -1, -1, -1, 0, 0, 1, 1, 1 };
@@ -15,6 +16,10 @@ Image::Image(std::string filename, int numOfPixels) : numOfPixels(numOfPixels)
 {
 	LoadImage(filename, imgWidth, imgHeight, channelsNum, arraySize);
 	assert(pixelArray);
+
+	computeWidth = imgWidth; 
+	lastElement = arraySize; 
+	originalImgWidth = imgWidth; 
 
 	energyArray = new double[arraySize]; 
 	cumulativeEnergyArray = new double[arraySize]; 
@@ -65,6 +70,33 @@ void Image::WriteImage(std::string filename)
 	stbi_write_png(filename.c_str(), imgWidth, imgHeight, channelsNum, outArray.data(), 0);
 }
 
+void Image::WriteImageImproved(std::string filename)
+{	
+	TIMER_START("2");
+	std::vector<uint8_t> outArray(imgHeight * imgWidth * channelsNum);
+	int k = 0; 
+	for (int i = 0; i < imgHeight; ++i)
+	{
+		for (int j = 0; j < imgWidth; ++j)
+		{
+			int index = i * originalImgWidth + j; 
+
+			outArray[k] = pixelArray[index].R;
+			outArray[k + 1] = pixelArray[index].G;
+			outArray[k + 2] = pixelArray[index].B;
+
+			if (channelsNum == 4)
+			{
+				outArray[k + 3] = pixelArray[index].A;
+			}
+			k += channelsNum;
+		}		
+	}
+	stbi_write_png(filename.c_str(), imgWidth, imgHeight, channelsNum, outArray.data(), 0);
+	TIMER_SECTION("Image");
+
+}
+
 void Image::DisplayInformation()
 {
 	std::cout << "Image stats\n\theight: " << imgHeight << "\n\twidth: " << imgWidth << "\n\tnumber of channels: " << channelsNum << std::endl; 
@@ -82,16 +114,26 @@ void Image::ShowGradientImage(std::string filename)
 void Image::ShowCumulativeEnergyImage(std::string filename)
 {
 	TIMER_START;
+	CalculateEnergy();
 	CalculateCumulativeEnergy();
 	TIMER_SECTION("Debug");
 
 	WriteImageDebug(filename, cumulativeEnergyArray); 
 }
 
+void Image::ShowCumulativeEnergyImageImproved(std::string filename)
+{
+	TIMER_START;
+	CalculateEnergyParallel();
+	CalculateCumulativeEnergyParallel();
+	TIMER_SECTION("Debug");
+
+	WriteImageDebug(filename, cumulativeEnergyArray);
+}
+
 void Image::CalculateEnergy()
 {
 	// Each thread takes a pixel
-	#pragma omp parallel for
 	for (int i = 0; i < arraySize; ++i)
 	{
 		// Gets its 8 neighbors
@@ -109,9 +151,34 @@ void Image::CalculateEnergy()
 	}	
 }
 
+void Image::CalculateEnergyParallel()
+{
+	// You could use this for parralizing and not use arraySize	
+	for (int i = 0; i < imgHeight; ++i)
+	{
+		#pragma omp parallel for
+		for (int j = 0; j < imgWidth; ++j)
+		{
+			// Gets its 8 neighbors
+			std::vector<Pixel> pixelNeighbors = GetPixelNeighborsImproved(j, i);
+
+			// Calculates gradient 
+			Vector3 gradX = CalculateGradientX(pixelNeighbors);
+			Vector3 gradY = CalculateGradientY(pixelNeighbors);
+
+			// Calcualtes pixel energy
+			double energy = GetEnergy(gradX, gradY);
+
+			// Stores it in energy array
+			energyArray[i * originalImgWidth + j] = energy;
+		}
+	}
+}
+
 void Image::CalculateCumulativeEnergy()
 {
 	// Copy first row values directly 
+	#pragma omp parallel for
 	for (int i = arraySize - 1; i >= arraySize - imgWidth; --i)
 	{
 		cumulativeEnergyArray[i] = energyArray[i]; 
@@ -119,6 +186,9 @@ void Image::CalculateCumulativeEnergy()
 
 	// The rest is caculated
 	int startingIndex = arraySize - imgWidth - 1; 
+
+	// TODO: 2 for loops: parallize rows 
+	
 	for (int i = startingIndex; i >= 0; --i)
 	{
 		int indexC = i + imgWidth;
@@ -145,6 +215,53 @@ void Image::CalculateCumulativeEnergy()
 
 		// Sum with previous row min value
 		cumulativeEnergyArray[i] = energyArray[i] + minValue;
+	}
+}
+
+void Image::CalculateCumulativeEnergyParallel()
+{
+	// Copy last row values directly 		
+	#pragma omp parallel for
+	for (int i = lastElement - 1; i >= lastElement - imgWidth; --i)
+	{
+		cumulativeEnergyArray[i] = energyArray[i];
+	}
+	
+	for (int i = imgHeight - 2; i >= 0; --i)
+	{
+		#pragma omp parallel for
+		for (int j = imgWidth - 1; j >= 0; --j)
+		{
+			int index = i * originalImgWidth + j; 
+
+			int indexC = index + originalImgWidth;
+			int indexL = indexC - 1;
+			int indexR = indexC + 1;
+
+			double minValue;
+
+			int leftMostIndex = i * originalImgWidth;
+			int rightMostIndex = leftMostIndex + imgWidth - 1; 
+
+			// Right pixel border 
+			if (index == rightMostIndex)
+			{
+				minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], REALLY_BIG_NUM });
+			}
+			// Left pixel border 
+			else if (index == leftMostIndex || index == 0)
+			{
+				minValue = std::min({ cumulativeEnergyArray[indexC], REALLY_BIG_NUM, cumulativeEnergyArray[indexR] });
+			}
+			// Center pixel 
+			else
+			{
+				minValue = std::min({ cumulativeEnergyArray[indexC], cumulativeEnergyArray[indexL], cumulativeEnergyArray[indexR] });
+			}
+
+			// Sum with previous row min value
+			cumulativeEnergyArray[index] = energyArray[index] + minValue;
+		}
 	}
 }
 
@@ -196,6 +313,21 @@ std::vector<Pixel> Image::GetPixelNeighbors(const int index)
 	return neighbors;
 }
 
+std::vector<Pixel> Image::GetPixelNeighborsImproved(const int indexX, const int indexY)
+{
+	std::vector<Pixel> neighbors(NUM_PIXEL_NEIGHB);	
+	
+	for (int i = 0; i < NUM_PIXEL_NEIGHB; ++i)
+	{
+		int nx = indexX + dx[i];
+		int ny = indexY + dy[i];
+		int neighborIndex = ny * originalImgWidth + nx;
+
+		neighbors[i] = (nx >= 0 && nx < imgWidth && ny >= 0 && ny < imgHeight) ? pixelArray[neighborIndex] : pixelArray[indexY * originalImgWidth + indexX];
+	}
+	return neighbors;
+}
+
 void Image::ResetPixelValues()
 {
 	#pragma omp parallel for
@@ -237,11 +369,11 @@ void Image::RemoveSeam()
 
 		// 3. Step remove 1 pixel column from image 
 		std::vector<int> indexesToRemove = FindMinPath();
-		assert(indexesToRemove.size() == imgHeight);
+		assert(indexesToRemove.size() == imgHeight);		
 
 		for (int i = 0, shift = 0; i < indexesToRemove.size(); ++i)
 		{
-			indexesToRemove[i] -= shift++; 
+			indexesToRemove[i] -= shift++; 			
 			ShiftPixelArray(indexesToRemove[i], arraySize); 
 			--arraySize; 
 		}
@@ -251,11 +383,12 @@ void Image::RemoveSeam()
 		// 4. Step update values
 		--imgWidth;
 		arraySize = imgHeight * imgWidth;
-		ResetPixelValues();		
+		//ResetPixelValues();		
 
 		TIMER_SECTION("reseting values");
 	}	
 }
+
 
 std::vector<int> Image::FindMinPath()
 {
@@ -306,10 +439,122 @@ std::vector<int> Image::FindMinPath()
 	return indexesToRemove; 
 }
 
+std::vector<int> Image::FindMinPathParallel()
+{
+	std::vector<int> indexesToRemove(imgHeight);
+
+	// Find value in top row with lowest cumulative energy 	
+	double* minValue = std::min_element(cumulativeEnergyArray, cumulativeEnergyArray + imgWidth);
+	size_t indexToRemove = minValue - cumulativeEnergyArray;
+	indexesToRemove[0] = indexToRemove;
+		
+	for (int i = 1; i < imgHeight; ++i)
+	{
+		// Get index neighbors 
+		int indexC = indexToRemove + originalImgWidth;
+		int indexL = indexC - 1;
+		int indexR = indexC + 1;
+
+		int selectedIndex = -1;
+
+		int leftMostIndex = i * originalImgWidth;
+		int rightMostIndex = leftMostIndex + imgWidth - 1;		
+
+		// Right pixel border 
+		if (indexToRemove == rightMostIndex)
+		{
+			selectedIndex = cumulativeEnergyArray[indexC] > cumulativeEnergyArray[indexL] ? indexL : indexC;
+		}
+		// Left pixel border 
+		else if (indexToRemove == leftMostIndex)
+		{
+			selectedIndex = cumulativeEnergyArray[indexC] > cumulativeEnergyArray[indexR] ? indexR : indexC;
+		}
+		// Center pixel 
+		else
+		{
+			if (cumulativeEnergyArray[indexC] < cumulativeEnergyArray[indexR] && cumulativeEnergyArray[indexC] < cumulativeEnergyArray[indexL])
+			{
+				selectedIndex = indexC;
+			}
+			else
+			{
+				selectedIndex = cumulativeEnergyArray[indexR] > cumulativeEnergyArray[indexL] ? indexL : indexR;
+			}
+		}
+
+		// Pixel with min value is selected 
+		indexToRemove = selectedIndex;
+		indexesToRemove[i] = indexToRemove;
+	}
+	return indexesToRemove;
+}
+
 void Image::ShiftPixelArray(int index, int size)
 {
 	for (int i = index; i < size - 1; ++i)
 	{
 		pixelArray[i] = pixelArray[i + 1]; 
+	}
+}
+
+void Image::ShiftPixelArrayParallel(int startingIndex, int endingIndex)
+{
+	for (int i = startingIndex; i < endingIndex; ++i)
+	{
+		pixelArray[i] = pixelArray[i + 1];
+	}	
+}
+
+std::vector<int> Image::Alo()
+{
+	std::vector<int> alo(imgHeight);
+	/*for (int i = 0; i < imgHeight; ++i)
+	{
+		alo[i] = i * originalImgWidth + 1;
+	}*/
+	return alo; 
+}
+
+void Image::RemoveSeamImproved()
+{
+	TIMER_START;
+
+	// Main code for seam removal - this must be sequentinoal 
+	for (int i = 0; i < numOfPixels; ++i)
+	{
+#if DEBUG_MODE
+		std::cout << "Removing " << i + 1 << ". seam... " << std::endl;
+#endif
+
+		// 1. Step calculate energy 
+		CalculateEnergyParallel(); 
+		TIMER_SECTION("energy");
+
+		// 2. Step calculate cumulative energy 
+		CalculateCumulativeEnergyParallel();		
+		TIMER_SECTION("cumulative energy");
+
+		// 3. Step remove 1 pixel column from image 
+		std::vector<int> indexesToRemove = FindMinPathParallel();
+		assert(indexesToRemove.size() == imgHeight);
+
+		//std::vector<int> indexesToRemove = Alo(); 
+
+		#pragma omp parallel for
+		for (int i = 0; i < indexesToRemove.size(); ++i)
+		{
+			ShiftPixelArrayParallel(indexesToRemove[i], i * originalImgWidth + imgWidth - 1);
+		}	
+
+		TIMER_SECTION("seam removal");
+
+		// 4. Step update values
+		--imgWidth;	
+		--lastElement;
+		arraySize = imgHeight * imgWidth;
+		//ResetPixelValues();		
+
+		TIMER_SECTION("reseting values");
 	}
 }
