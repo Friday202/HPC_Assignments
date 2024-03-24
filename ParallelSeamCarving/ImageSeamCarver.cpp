@@ -13,7 +13,10 @@ const int ImageSeamCarver::dy[NUM_PIXEL_NEIGHB] = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
 ImageSeamCarver::ImageSeamCarver(std::string filename, int numOfSeams) : numOfSeams(numOfSeams)
 {
+	auto start_time = std::chrono::high_resolution_clock::now();
 	LoadImage(filename, imgWidth, imgHeight, channelsNum);	
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time);
+	std::cout << duration.count() << " ";
 
 	lastElement = imgHeight * imgWidth;
 	originalImgWidth = imgWidth;
@@ -32,7 +35,6 @@ ImageSeamCarver::~ImageSeamCarver()
 
 void ImageSeamCarver::RemoveSeam()
 {
-	std::cout << "Removing " << numOfSeams << " seams..." << std::endl;
 
 	auto start_time = std::chrono::high_resolution_clock::now();	
 	std::chrono::microseconds duration; 
@@ -89,9 +91,9 @@ void ImageSeamCarver::RemoveSeam()
 		averageTimes[i] /= numOfSeams;
 	}
 
-	std::cout << "Average time taken for Energy calculation: " << averageTimes[0] << " microseconds" << std::endl;
-	std::cout << "Average time taken for Cumulative energy calculation: " << averageTimes[1] << " microseconds" << std::endl;
-	std::cout << "Average time taken for Seam removal: " << averageTimes[2] << " microseconds" << std::endl;
+	std::cout << averageTimes[0] << " ";
+	std::cout << averageTimes[1] << " ";
+	std::cout << averageTimes[2] << " ";
 }
 
 void ImageSeamCarver::LoadImage(std::string filename, int& outWidth, int& outHeight, int& outChannelNum)
@@ -102,7 +104,7 @@ void ImageSeamCarver::LoadImage(std::string filename, int& outWidth, int& outHei
 	int arraySize = outWidth * outHeight; 
 	pixelArray = new Pixel[arraySize];
 
-	#pragma omp parallel for
+	#pragma omp parallel for num_threads(5)
 	for (int i = 0; i < arraySize; ++i)
 	{
 		int pixelIndex = i * outChannelNum;
@@ -113,8 +115,10 @@ void ImageSeamCarver::LoadImage(std::string filename, int& outWidth, int& outHei
 
 void ImageSeamCarver::WriteImage(std::string filename)
 {
+	auto start_time = std::chrono::high_resolution_clock::now();
 	std::vector<uint8_t> outArray(imgHeight * imgWidth * channelsNum);
 	int k = 0;
+	// #pragma omp parallel num_threads(4)
 	for (int i = 0; i < imgHeight; ++i)
 	{
 		for (int j = 0; j < imgWidth; ++j)
@@ -133,6 +137,8 @@ void ImageSeamCarver::WriteImage(std::string filename)
 		}
 	}
 	stbi_write_png(filename.c_str(), imgWidth, imgHeight, channelsNum, outArray.data(), 0);
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time);
+	std::cout << duration.count() << std::endl;
 }
 
 void ImageSeamCarver::DisplayInformation()
@@ -147,12 +153,6 @@ void ImageSeamCarver::CalculateEnergy()
 		#pragma omp parallel for
 		for (int j = 0; j < imgWidth; ++j)
 		{
-
-#if USE_ENERGY_OPTIMIZATION
-			// If pixel already has calculated energy skip
-			if (!pixelArray[i * originalImgWidth + j].bNeedsUpdate) continue; 
-#endif
-
 			// Gets its 8 neighbors
 			std::vector<Pixel*> pixelNeighbors = GetPixelNeighbors(j, i);
 
@@ -165,10 +165,6 @@ void ImageSeamCarver::CalculateEnergy()
 
 			// Stores it in energy array
 			energyArray[i * originalImgWidth + j] = energy;
-
-#if USE_ENERGY_OPTIMIZATION
-			pixelArray[i * originalImgWidth + j].bNeedsUpdate = false; 
-#endif
 		}
 	}
 }
@@ -176,7 +172,7 @@ void ImageSeamCarver::CalculateEnergy()
 void ImageSeamCarver::CalculateCumulativeEnergy()
 {
 	// Copy last row values directly 		
-	#pragma omp parallel for
+	#pragma omp parallel for num_threads(4)
 	for (int i = lastElement - 1; i >= lastElement - imgWidth; --i)
 	{
 		cumulativeEnergyArray[i] = energyArray[i];
@@ -298,7 +294,6 @@ std::vector<int> ImageSeamCarver::FindMinPath()
 std::vector<Pixel*> ImageSeamCarver::GetPixelNeighbors(const int indexX, const int indexY)
 {
 	std::vector<Pixel*> neighbors(NUM_PIXEL_NEIGHB);
-
 	for (int i = 0; i < NUM_PIXEL_NEIGHB; ++i)
 	{
 		int nx = indexX + dx[i];
@@ -314,28 +309,11 @@ void ImageSeamCarver::RemovePixelColumn()
 {
 	std::vector<int> indexesToRemove = FindMinPath();
 
-	#pragma omp parallel for
+	#pragma omp parallel for 
 	for (int i = 0; i < indexesToRemove.size(); ++i)
 	{
 		ShiftPixelArrayParallel(indexesToRemove[i], i * originalImgWidth + imgWidth - 1);
 	}
-#if USE_ENERGY_OPTIMIZATION
-
-	// Update pixels that need update
-	for (int i = 0; i < indexesToRemove.size(); ++i)
-	{
-		pixelArray[indexesToRemove[i]].bNeedsUpdate = true; 
-
-		int x = indexesToRemove[i] % originalImgWidth;
-		int y = indexesToRemove[i] / originalImgWidth;
-		std::vector<Pixel*> Neighbors = GetPixelNeighbors(x,y); 
-		for (Pixel* neighbor : Neighbors)
-		{
-			neighbor->bNeedsUpdate = true; 
-		}
-	}
-
-#endif
 }
 
 void ImageSeamCarver::ShiftPixelArrayParallel(int startingIndex, int endingIndex)
@@ -343,9 +321,5 @@ void ImageSeamCarver::ShiftPixelArrayParallel(int startingIndex, int endingIndex
 	for (int i = startingIndex; i < endingIndex; ++i)
 	{
 		pixelArray[i] = pixelArray[i + 1];
-#if USE_ENERGY_OPTIMIZATION
-		pixelArray[i].bNeedsUpdate = true;
-		energyArray[i] = energyArray[i + 1];
-#endif
 	}
 }

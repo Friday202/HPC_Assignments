@@ -23,6 +23,9 @@ int main(int argc, char* argv[])
 		}
 		std::string relativeImgPath = argv[1];	
 		numOfSeams = std::stoi(argv[2]);
+		std::string stringRemove = "/Images/";
+
+		std::cout << relativeImgPath.substr(stringRemove.length(), relativeImgPath.length()) << " " << numOfSeams << " ";
 		 
 		// Get the current path and form absolute path
 		absoluteImgPath = std::filesystem::current_path().string() + relativeImgPath;
@@ -41,7 +44,7 @@ int main(int argc, char* argv[])
 	//image->RemoveSeamImproved();
 	//image->WriteImage(absoluteImgPath + "_ImgOut.png");
 	//image->WriteImageImproved(absoluteImgPath + "_ImgOutNe2w.png");
-
+	
 
 	ImageSeamCarver* imageSC = new ImageSeamCarver(absoluteImgPath, numOfSeams);
 	imageSC->RemoveSeam(); 
