@@ -208,12 +208,12 @@ int main(int argc, char* argv[]) {
     // -------------DEFAULT PARAMETER SETTINGS----------------
     std::string filename = "720x480.png";
     int numOfSeams = 128;
-    int loadImageThreads = 5;
-    int energyThreads = 5;
-    int ceFirstRowCopyThreads = 5;
-    int ceRowParalelizationThreads = 5;
-    int arrayShiftThreads = 5;
-    int writeImageThreads = 5;
+    int loadImageThreads = 1;
+    int energyThreads = 1;
+    int ceFirstRowCopyThreads = 1;
+    int ceRowParalelizationThreads = 1;
+    int arrayShiftThreads = 1;
+    int writeImageThreads = 1;
     
     //-------------PARSE COMMAND LINE ARGUMENTS----------------
     if (argc < 3) {
@@ -268,6 +268,7 @@ int main(int argc, char* argv[]) {
     loadImageTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
     
     for (int i = 0; i < numOfSeams; ++i) {
+        //print the progress
         // calculate the energy of the image
         auto start_time = std::chrono::high_resolution_clock::now();
         unsigned short** energyArray = calculateEnergy(pixelArray, imgWidth, imgHeight, channelsNum, energyThreads);
