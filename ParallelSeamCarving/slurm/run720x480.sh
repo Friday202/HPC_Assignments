@@ -270,6 +270,5 @@ echo "Optimal writeImageThreads: $optimal_writeImageThreads" >> $optimal_file
 
 # save optimal values to a file in one line
 echo "$filename $numOfSeams $optimal_loadImageThreads $optimal_energyThreads $optimal_ceFirstRowCopyThreads $optimal_ceRowParalelizationThreads $optimal_arrayShiftThreads $optimal_writeImageThreads" >> $optimal_file
-```
 
 

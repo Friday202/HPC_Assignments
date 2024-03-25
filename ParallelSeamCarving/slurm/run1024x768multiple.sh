@@ -1,21 +1,21 @@
 #!/bin/bash
-#SBATCH --job-name=sc_720x480
+#SBATCH --job-name=scm_1024x768
 #SBATCH --partition=all
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=128
-#SBATCH --output=logs/output_sc_720x480.txt
-#SBATCH --error=logs/error_sc_720x480.txt
+#SBATCH --output=logsMult/output_sc_1024x768.txt
+#SBATCH --error=logsMult/error_sc_1024x768.txt
 #SBATCH --time=01:00:00
 #SBATCH --mem=64GB
 
 
 # Define parameters
-filename="720x480.png"
+filename="1024x768.png"
 numOfSeams=128
 
-output_file="results/${filename%.png}_${numOfSeams}_runs.txt"
-optimal_file="results/${filename%.png}_${numOfSeams}_optimal.txt"
+output_file="resultsMult/${filename%.png}_${numOfSeams}_runs.txt"
+optimal_file="resultsMult/${filename%.png}_${numOfSeams}_optimal.txt"
 
 # Function to run the program with specific parameters and return loadImageTime
 run_program_loadImage() {
@@ -182,7 +182,7 @@ other_arrayShiftThreads=(1 4 6 12 16 32)
 optimal_writeImageThreads=8
 other_writeImageThreads=(4 6 8 12 16 32)
 
-runs=3
+runs=5
 
 # Find optimal value for loadImageThreads (tries other values, if they are faster, optimal value is updated)
 min_loadImageTime=0
@@ -206,7 +206,7 @@ for loadImageThreads in "${other_loadImageThreads[@]}"; do
     fi
 done
 
-echo "Optimal loadImageThreads: $optimal_loadImageThreads"
+echo "Optimal loadImageThreads: $optimal_loadImageThreads | avgLoadImageTime_runs=$runs: $min_loadImageTime"
 
 # Find optimal value for energyThreads (tries other values, if they are faster, optimal value is updated)
 min_energyTime=0
@@ -229,7 +229,7 @@ for energyThreads in "${other_energyThreads[@]}"; do
     fi
 done
 
-echo "Optimal energyThreads: $optimal_energyThreads"
+echo "Optimal energyThreads: $optimal_energyThreads | avgEnergyTime_runs=$runs: $min_energyTime"
 
 # Find optimal value for ceFirstRowCopyThreads (tries other values, if they are faster, optimal value is updated)
 min_ceFirstRowCopyTime=0
@@ -252,7 +252,7 @@ for ceFirstRowCopyThreads in "${other_ceFirstRowCopyThreads[@]}"; do
     fi
 done
 
-echo "Optimal ceFirstRowCopyThreads: $optimal_ceFirstRowCopyThreads"
+echo "Optimal ceFirstRowCopyThreads: $optimal_ceFirstRowCopyThreads | avgCeFirstRowCopyTime_runs=$runs: $min_ceFirstRowCopyTime"
 
 # Find optimal value for ceRowParalelizationThreads (tries other values, if they are faster, optimal value is updated)
 min_ceRowParalelizationTime=0
@@ -275,7 +275,7 @@ for ceRowParalelizationThreads in "${other_ceRowParalelizationThreads[@]}"; do
     fi
 done
 
-echo "Optimal ceRowParalelizationThreads: $optimal_ceRowParalelizationThreads"
+echo "Optimal ceRowParalelizationThreads: $optimal_ceRowParalelizationThreads | avgCeRowParalelizationTime_runs=$runs: $min_ceRowParalelizationTime"
 
 # Find optimal value for arrayShiftThreads (tries other values, if they are faster, optimal value is updated)
 min_arrayShiftTime=0
@@ -298,7 +298,7 @@ for arrayShiftThreads in "${other_arrayShiftThreads[@]}"; do
     fi
 done
 
-echo "Optimal arrayShiftThreads: $optimal_arrayShiftThreads"
+echo "Optimal arrayShiftThreads: $optimal_arrayShiftThreads | avgArrayShiftTime_runs=$runs: $min_arrayShiftTime"
 
 # Find optimal value for writeImageThreads (tries other values, if they are faster, optimal value is updated)
 min_writeImageTime=0
@@ -321,7 +321,7 @@ for writeImageThreads in "${other_writeImageThreads[@]}"; do
     fi
 done
 
-echo "Optimal writeImageThreads: $optimal_writeImageThreads"
+echo "Optimal writeImageThreads: $optimal_writeImageThreads | avgWriteImageTime_runs=$runs: $min_writeImageTime"
 
 # Save optimal values to a file
 echo "Optimal loadImageThreads: $optimal_loadImageThreads" >> $optimal_file
@@ -333,6 +333,3 @@ echo "Optimal writeImageThreads: $optimal_writeImageThreads" >> $optimal_file
 
 # save optimal values to a file in one line
 echo "$filename $numOfSeams $optimal_loadImageThreads $optimal_energyThreads $optimal_ceFirstRowCopyThreads $optimal_ceRowParalelizationThreads $optimal_arrayShiftThreads $optimal_writeImageThreads" >> $optimal_file
-```
-
-

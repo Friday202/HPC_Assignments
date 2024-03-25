@@ -1,0 +1,4 @@
+Parameters: 1920x1200.png 128 32 32 12 2 8 6
+Average real time: 12.42 s [ 12.272 12.774 12.217 12.447 12.398 ]
+Average user time: 233.21 s [ 231.919 239.952 227.385 233.101 233.713 ]
+Average system time: 5.38 s [ 4.632 6.215 5.321 5.773 5 ]
