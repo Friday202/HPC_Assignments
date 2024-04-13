@@ -1,0 +1,6 @@
+Optimal loadImageThreads: 16 | avgLoadImageTime_runs=5: 15
+Optimal energyThreads: 32 | avgEnergyTime_runs=5: 12
+Optimal ceFirstRowCopyThreads: 4 | avgCeFirstRowCopyTime_runs=5: 3
+Optimal ceRowParalelizationThreads: 2 | avgCeRowParalelizationTime_runs=5: 0
+Optimal arrayShiftThreads: 16 | avgArrayShiftTime_runs=5: 0
+Optimal writeImageThreads: 32 | avgWriteImageTime_runs=5: 87
