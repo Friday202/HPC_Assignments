@@ -1,4 +1,0 @@
-Parameters: 1024x768.png 128 1 1 1 1 1 1
-Average real time: 25.46 s [ 26.204 25.197 25.419 25.277 25.248 ]
-Average user time: 25.35 s [ 26.084 25.078 25.282 25.164 25.158 ]
-Average system time: .04 s [ 0.045 0.045 0.046 0.038 0.035 ]

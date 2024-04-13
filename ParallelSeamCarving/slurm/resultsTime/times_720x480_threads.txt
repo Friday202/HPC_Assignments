@@ -1,4 +1,0 @@
-Parameters: 720x480.png 128 6 32 4 2 8 8
-Average real time: 2.78 s [ 2.748 2.674 2.776 2.883 2.82 ]
-Average user time: 56.64 s [ 55.656 54.584 58.057 59.3 55.647 ]
-Average system time: .96 s [ 0.925 0.812 1.185 0.849 1.078 ]

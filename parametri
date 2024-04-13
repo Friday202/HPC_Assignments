@@ -1,1 +1,0 @@
-imageName, numOfSeams, loadImageThreads, energyThreads,  ceFirstRowCopyThreads, ceRowParalelizationThreads, arrayShiftThreads, 

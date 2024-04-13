@@ -1,7 +1,0 @@
-Optimal loadImageThreads: 32
-Optimal energyThreads: 32
-Optimal ceFirstRowCopyThreads: 12
-Optimal ceRowParalelizationThreads: 2
-Optimal arrayShiftThreads: 8
-Optimal writeImageThreads: 6
-1920x1200.png 128 32 32 12 2 8 6
