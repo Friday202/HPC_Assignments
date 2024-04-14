@@ -15,7 +15,7 @@
 #include "stb_image_write.h"
 
 #define COLOR_CHANNELS 0
-#define DEBUG 1
+#define DEBUG 0
 #define CUDA_DEBUG 0
 //#define PIXEL_VALUES (1 << sizeof(unsigned char) * 8)
 #define PIXEL_VALUES 256
@@ -43,18 +43,13 @@ void calculate_new_pixel_intensities_cpu(int* histogram_red, int* histogram_gree
             min_blue = histogram_blue[i];            
         }
     }
-    printf("Min values R: %d, G: %d, B: %d\n", min_red, min_green, min_blue);
     
     for (int i = 0; i < PIXEL_VALUES; ++i)
 	{
-        histogram_red[i] = ((histogram_red[i] - min_red) / (width * height - min_red)) * (PIXEL_VALUES - 1);
-        histogram_green[i] = ((histogram_green[i] - min_green) / (width * height - min_green)) * (PIXEL_VALUES - 1);
-        histogram_blue[i] = ((histogram_blue[i] - min_blue) / (width * height - min_blue)) * (PIXEL_VALUES - 1);		
-	}
-    for (int i = 0; i < PIXEL_VALUES; ++i)
-    {
-        printf("Values %d R: %d, G: %d, B: %d\n", i, histogram_red[i], histogram_green[i], histogram_blue[i]);
-    }
+        histogram_red[i] = ((float)(histogram_red[i] - min_red) / (width * height - min_red)) * (PIXEL_VALUES - 1);
+        histogram_green[i] = ((float)(histogram_green[i] - min_green) / (width * height - min_green)) * (PIXEL_VALUES - 1);
+        histogram_blue[i] = ((float)(histogram_blue[i] - min_blue) / (width * height - min_blue)) * (PIXEL_VALUES - 1);		
+	}    
 }
 
 void calculate_histogram_cpu(const unsigned char* image, int* histogram_red, int* histogram_green, int* histogram_blue, const int width, const int height, const int cpp)
@@ -83,29 +78,51 @@ __global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* 
     if (blockIdx.x == 0 && threadIdx.x == 0)
     {
         printf("Executing kernel: Calculate new pixel intensities\n");
+        printf("Width: %d, Height: %d\n", width, height);
+        for (int i = 0; i < PIXEL_VALUES; i++)
+		{
+			printf("Values %d R: %d, G: %d, B: %d\n", i, histogram_red[i], histogram_green[i], histogram_blue[i]);
+		}
     }
 
     int min_red = 0;
     int min_green = 0;
     int min_blue = 0;
 
-    // Find minimum value in each histogram
-    for (int i = 0; i < PIXEL_VALUES; ++i)
+    __syncthreads();
+
+    // Find minimum value in each histogram - 3 threads 
+    if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        if (histogram_red[i] != 0)
+        for (int i = 0; i < PIXEL_VALUES; i++)
         {
-            min_red = histogram_red[i];
-            break;
+            if (histogram_red[i] != 0)
+            {
+                min_red = histogram_red[i];
+                break;
+            }            
         }
-        if (histogram_green[i] != 0)
+    }
+    else if (threadIdx.x == 1 && blockIdx.x == 0)
+    {
+        for (int i = 0; i < PIXEL_VALUES; i++)
         {
-            min_green = histogram_green[i];
-            break;
+            if (histogram_green[i] != 0)
+			{
+				min_green = histogram_green[i];
+				break;
+			}                    
         }
-        if (histogram_blue[i] != 0)
+    }
+    else if (threadIdx.x == 2 && blockIdx.x == 0)
+    {
+        for (int i = 0; i < PIXEL_VALUES; i++)
         {
-            min_blue = histogram_blue[i];
-            break;
+            if (histogram_blue[i] != 0)
+			{
+				min_blue = histogram_blue[i];
+				break;
+			}         
         }
     }
 
@@ -115,9 +132,19 @@ __global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* 
 
     for (int i = threadIdx.x; i < PIXEL_VALUES; i += blockDim.x)
     {
-        histogram_red[i] = (histogram_red[i] - min_red) * (PIXEL_VALUES - 1) / (total_pixels - min_red);
-        histogram_green[i] = (histogram_green[i] - min_green) * (PIXEL_VALUES - 1) / (total_pixels - min_green);
-        histogram_blue[i] = (histogram_blue[i] - min_blue) * (PIXEL_VALUES - 1) / (total_pixels - min_blue);
+        histogram_red[i] = ((float)(histogram_red[i] - min_red) / (width * height - min_red)) * (PIXEL_VALUES - 1);
+        histogram_green[i] = ((float)(histogram_green[i] - min_green) / (width * height - min_green)) * (PIXEL_VALUES - 1);
+        histogram_blue[i] = ((float)(histogram_blue[i] - min_blue) / (width * height - min_blue)) * (PIXEL_VALUES - 1);
+    }
+
+    if (blockIdx.x == 0 && threadIdx.x == 0)
+    {
+        /*printf("Hello\n"); 
+        printf("Min red: %d, Min green: %d, Min blue: %d\n", min_red, min_green, min_blue);
+        for (int i = 0; i < PIXEL_VALUES; i++)
+		{
+			printf("Values %d R: %d, G: %d, B: %d\n", i, histogram_red[i], histogram_green[i], histogram_blue[i]);
+		}*/
     }
 }
 
