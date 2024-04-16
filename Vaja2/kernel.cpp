@@ -15,7 +15,7 @@
 #include "stb_image_write.h"
 
 #define COLOR_CHANNELS 0
-#define DEBUG 1
+#define DEBUG 0
 #define CUDA_DEBUG 0
 //#define PIXEL_VALUES (1 << sizeof(unsigned char) * 8)
 #define PIXEL_VALUES 256
@@ -73,6 +73,61 @@ void calculate_cumulative_histogram_cpu(int* histogram_red, int* histogram_green
 }
 /* ~ CPU code for checking purposes */
 
+__global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* histogram_green, int* histogram_blue, const int width, const int height)
+{
+    if (blockIdx.x == 0 && threadIdx.x == 0)
+	{
+        printf("Executing kernel: Calculate new pixel intensities\n");                  
+	}
+
+    __shared__ int min_red;
+    __shared__ int min_green;
+    __shared__ int min_blue;
+
+    __syncthreads();  
+
+    // Each block computes its own local minimum values
+    if (threadIdx.x < 3) {
+        if (threadIdx.x == 0) {
+            for (int i = 0; i < PIXEL_VALUES; i++) {
+                if (histogram_red[i] != 0) {
+                    min_red = histogram_red[i];
+                    break;
+                }
+            }
+        }
+        else if (threadIdx.x == 1) {
+            for (int i = 0; i < PIXEL_VALUES; i++) {
+                if (histogram_green[i] != 0) {
+                    min_green = histogram_green[i];
+                    break;
+                }
+            }
+        }
+        else if (threadIdx.x == 2) {
+            for (int i = 0; i < PIXEL_VALUES; i++) {
+                if (histogram_blue[i] != 0) {
+                    min_blue = histogram_blue[i];
+                    break;
+                }
+            }
+        }
+    }
+
+    __syncthreads();       
+
+    int total_pixels = width * height;
+    int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // TODO: I don't really understand the loop indexes 
+    for (int i = global_thread_id; i < PIXEL_VALUES; i += blockDim.x * gridDim.x)
+    {
+        histogram_red[i] = ((float)(histogram_red[i] - min_red) / (width * height - min_red)) * (PIXEL_VALUES - 1);
+        histogram_green[i] = ((float)(histogram_green[i] - min_green) / (width * height - min_green)) * (PIXEL_VALUES - 1);
+        histogram_blue[i] = ((float)(histogram_blue[i] - min_blue) / (width * height - min_blue)) * (PIXEL_VALUES - 1);
+    }    
+}
+
 __global__ void map_new_pixel_intensities_kernel(const unsigned char* imageIn, unsigned char* imageOut, const int* histogram_red, const int* histogram_green, const int* histogram_blue, const int width, const int height, const int cpp)
 {
 	if (blockIdx.x == 0 && threadIdx.x == 0)
@@ -96,84 +151,6 @@ __global__ void map_new_pixel_intensities_kernel(const unsigned char* imageIn, u
 			imageOut[i] = histogram_blue[imageIn[i]];
 		}
 	}	
-}
-
-// TODO: Figure out why this kernel doesn't work - histogram are zeros for some reason
-__global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* histogram_green, int* histogram_blue, int width, int height)
-{
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-    {
-        printf("Executing kernel: Calculate new pixel intensities\n");
-        printf("Width: %d, Height: %d\n", width, height);
-        for (int i = 0; i < PIXEL_VALUES; i++)
-		{
-			printf("Values %d R: %d, G: %d, B: %d\n", i, histogram_red[i], histogram_green[i], histogram_blue[i]);
-		}
-    }
-
-    int min_red = 0;
-    int min_green = 0;
-    int min_blue = 0;
-
-    __syncthreads();
-
-    // Find minimum value in each histogram - 3 threads 
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        for (int i = 0; i < PIXEL_VALUES; i++)
-        {
-            if (histogram_red[i] != 0)
-            {
-                min_red = histogram_red[i];
-                break;
-            }            
-        }
-    }
-    else if (threadIdx.x == 1 && blockIdx.x == 0)
-    {
-        for (int i = 0; i < PIXEL_VALUES; i++)
-        {
-            if (histogram_green[i] != 0)
-			{
-				min_green = histogram_green[i];
-				break;
-			}                    
-        }
-    }
-    else if (threadIdx.x == 2 && blockIdx.x == 0)
-    {
-        for (int i = 0; i < PIXEL_VALUES; i++)
-        {
-            if (histogram_blue[i] != 0)
-			{
-				min_blue = histogram_blue[i];
-				break;
-			}         
-        }
-    }
-
-    __syncthreads();
-
-    int total_pixels = width * height;
-
-    for (int i = threadIdx.x; i < PIXEL_VALUES; i += blockDim.x)
-    {
-        histogram_red[i] = ((float)(histogram_red[i] - min_red) / (width * height - min_red)) * (PIXEL_VALUES - 1);
-        histogram_green[i] = ((float)(histogram_green[i] - min_green) / (width * height - min_green)) * (PIXEL_VALUES - 1);
-        histogram_blue[i] = ((float)(histogram_blue[i] - min_blue) / (width * height - min_blue)) * (PIXEL_VALUES - 1);
-    }
-
-    __syncthreads();
-
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-    {
-        printf("Hello\n"); 
-        printf("Min red: %d, Min green: %d, Min blue: %d\n", min_red, min_green, min_blue);
-        for (int i = 0; i < PIXEL_VALUES; i++)
-		{
-			printf("Values %d R: %d, G: %d, B: %d\n", i, histogram_red[i], histogram_green[i], histogram_blue[i]);
-		}
-    }
 }
 
 __global__ void calculate_cumulative_sum_kernel(int* histogram_red, int* histogram_green, int* histogram_blue)
@@ -230,7 +207,6 @@ __global__ void calculate_histogram_kernel(const unsigned char* imageData, int* 
         partial_histogram_red[i] = 0;
         partial_histogram_green[i] = 0;
         partial_histogram_blue[i] = 0;
-        // Should we zero out the histogram as well? - causes it to not work properly for some reason        
 	}    
 
     __syncthreads();
@@ -362,6 +338,10 @@ int main(int argc, char* argv[])
     checkCudaErrors(cudaMalloc(&d_histogram_green, histogram_size));
     checkCudaErrors(cudaMalloc(&d_histogram_blue, histogram_size));
 
+    checkCudaErrors(cudaMemset(d_histogram_red, 0, histogram_size));
+    checkCudaErrors(cudaMemset(d_histogram_green, 0, histogram_size));
+    checkCudaErrors(cudaMemset(d_histogram_blue, 0, histogram_size));
+
     // Use CUDA events to measure execution time
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -398,8 +378,7 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    // STEP 2: Compute cumulative sum 
-    cudaDeviceSynchronize();
+    // STEP 2: Compute cumulative sum  
     calculate_cumulative_sum_simple_kernel <<<gridSize, blockSize >>> (d_histogram_red, d_histogram_green, d_histogram_blue);
     cudaDeviceSynchronize();
 
@@ -418,7 +397,6 @@ int main(int argc, char* argv[])
 #endif   
 
     // STEP 3: Compute new pixel intensities
-    cudaDeviceSynchronize();
     calculate_new_pixel_intensities_kernel <<<gridSize, blockSize >>> (d_histogram_red, d_histogram_green, d_histogram_blue, width, height);
     cudaDeviceSynchronize();
 
@@ -430,14 +408,10 @@ int main(int argc, char* argv[])
     for (int i = 0; i < PIXEL_VALUES; i++)
     {
         printf("Values %d R: %d - %d, G: %d - %d, B: %d - %d\n", i, h_histogram_red_cpu[i], h_histogram_red[i], h_histogram_green_cpu[i], h_histogram_green[i], h_histogram_blue_cpu[i], h_histogram_blue[i]);
-        //assert(h_histogram_red[i] == h_histogram_red_cpu[i]);
-        //assert(h_histogram_green[i] == h_histogram_green_cpu[i]);
-        //assert(h_histogram_blue[i] == h_histogram_blue_cpu[i]);
+        assert(h_histogram_red[i] == h_histogram_red_cpu[i]);
+        assert(h_histogram_green[i] == h_histogram_green_cpu[i]);
+        assert(h_histogram_blue[i] == h_histogram_blue_cpu[i]);
     }
-    /* Comment this when STEP 3 kernel will work! */
-    checkCudaErrors(cudaMemcpy(d_histogram_red, h_histogram_red_cpu, histogram_size, cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_histogram_green, h_histogram_green_cpu, histogram_size, cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_histogram_blue, h_histogram_blue_cpu, histogram_size, cudaMemcpyHostToDevice));
 #endif
     // STEP 4: Map new pixel intensities to output image
     cudaDeviceSynchronize();
