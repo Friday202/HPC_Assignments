@@ -157,118 +157,44 @@ __global__ void map_new_pixel_intensities_kernel(const unsigned char* imageIn, u
 __global__ void calculate_cumulative_sum_kernel(int* histogram_red, int* histogram_green, int* histogram_blue) //Algorithm 2 Work-efficient parallel scan algorithm.
 {   
 
-    // // set all histograms to all zeroas and sync
-    // if (threadIdx.x == 1){
-    //     for (int i = 0; i < 16; i++)
-    //     {
-    //         histogram_red[i] = i;
-    //         histogram_green[i] = i;
-    //         histogram_blue[i] = i;
-    //     }
-    //     for (int i = 16; i < PIXEL_VALUES; i++)
-    //     {
-    //         histogram_red[i] = -111;
-    //         histogram_green[i] = -111;
-    //         histogram_blue[i] = -111;
-    //     }
-    // }
-
-    // __syncthreads();
-    // TODO: Implement parallel cumulative sum calculation
     int log_pixel_val = 8;
 
-    if (blockIdx.x == 0) //calculating for red
-    {
-        for (int k = 0; k < log_pixel_val; k++)
-        {   
-            int drugi = (threadIdx.x * pow(2, k+1)) + pow(2, k + 1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k+1)) + pow(2, k) - 1;
-                // printf("Thread %d (k=%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), prvi, histogram_red[prvi], drugi, histogram_red[drugi]);
+    for (int k = 0; k < log_pixel_val; k++)
+    {   
+        int drugi = (threadIdx.x << (k+1)) + ((1 << (k + 1)) - 1);
+        if (drugi < PIXEL_VALUES)
+        {
+            int prvi = (threadIdx.x << (k+1)) + (1 << k) - 1;
+            // printf("Thread %d (k=%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), prvi, histogram_red[prvi], drugi, histogram_red[drugi]);
+            if (blockIdx.x == 0) {
                 histogram_red[drugi] = histogram_red[prvi] + histogram_red[drugi];
-            }
-            __syncthreads();
-        }
-
-        for (int k = log_pixel_val; k > 0; k--)
-        {
-
-            int drugi = (threadIdx.x * pow(2, k)) + pow(2, k) + pow(2, k-1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k)) + pow(2, k) - 1;
-                // printf("Thread %d (k=-%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), drugi, histogram_red[drugi], prvi, histogram_red[prvi]);
-                histogram_red[drugi] = histogram_red[drugi] + histogram_red[prvi];
-            }
-            __syncthreads();
-        }
-    }
-    else if (blockIdx.x == 1) //calculating for green
-    {
-        for (int k = 0; k < log_pixel_val; k++)
-        {   
-            int drugi = (threadIdx.x * pow(2, k+1)) + pow(2, k + 1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k+1)) + pow(2, k) - 1;
-                // printf("Thread %d (k=%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), prvi, histogram_red[prvi], drugi, histogram_red[drugi]);
+            } else if (blockIdx.x == 1) {
                 histogram_green[drugi] = histogram_green[prvi] + histogram_green[drugi];
-            }
-            __syncthreads();
-        }
-
-        for (int k = log_pixel_val; k > 0; k--)
-        {
-
-            int drugi = (threadIdx.x * pow(2, k)) + pow(2, k) + pow(2, k-1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k)) + pow(2, k) - 1;
-                // printf("Thread %d (k=-%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), drugi, histogram_red[drugi], prvi, histogram_red[prvi]);
-                histogram_green[drugi] = histogram_green[drugi] + histogram_green[prvi];
-            }
-            __syncthreads();
-        }
-    }
-    else if (blockIdx.x == 2) //calculating for blue
-    {
-        for (int k = 0; k < log_pixel_val; k++)
-        {   
-            int drugi = (threadIdx.x * pow(2, k+1)) + pow(2, k + 1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k+1)) + pow(2, k) - 1;
-                // printf("Thread %d (k=%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), prvi, histogram_red[prvi], drugi, histogram_red[drugi]);
+            } else if (blockIdx.x == 2) {
                 histogram_blue[drugi] = histogram_blue[prvi] + histogram_blue[drugi];
             }
-            __syncthreads();
+            
         }
-
-        for (int k = log_pixel_val; k > 0; k--)
-        {
-
-            int drugi = (threadIdx.x * pow(2, k)) + pow(2, k) + pow(2, k-1) - 1;
-            if (drugi < PIXEL_VALUES)
-            {
-                int prvi = (threadIdx.x * pow(2, k)) + pow(2, k) - 1;
-                // printf("Thread %d (k=-%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), drugi, histogram_red[drugi], prvi, histogram_red[prvi]);
-                histogram_blue[drugi] = histogram_blue[drugi] + histogram_blue[prvi];
-            }
-            __syncthreads();
-        }
+        __syncthreads();
     }
+    for (int k = log_pixel_val; k > 0; k--)
+    {
 
-    // __syncthreads();
-
-    // if (blockIdx.x == 0 && threadIdx.x == 0)
-    // {
-    //     for (int i = 0; i < 16; i++)
-    //     {
-    //         //print histogram red
-    //         printf("Histogram red[%d]: %d\n", i, histogram_red[i]);
-    //     }
-    // }
+        int drugi = (threadIdx.x << k) + (1 << k) + (1 << (k-1)) - 1;
+        if (drugi < PIXEL_VALUES)
+        {
+            int prvi = (threadIdx.x << k) + (1 << k) - 1;
+            // printf("Thread %d (k=-%d) (limit=%f): %d[%d] + %d[%d]\n", threadIdx.x, k, pow(2, log_pixel_val-1-k), drugi, histogram_red[drugi], prvi, histogram_red[prvi]);
+            if (blockIdx.x == 0) {
+                histogram_red[drugi] = histogram_red[prvi] + histogram_red[drugi];
+            } else if (blockIdx.x == 1) {
+                histogram_green[drugi] = histogram_green[prvi] + histogram_green[drugi];
+            } else if (blockIdx.x == 2) {
+                histogram_blue[drugi] = histogram_blue[prvi] + histogram_blue[drugi];
+            }
+        }
+        __syncthreads();
+    }
 
 }
 
@@ -498,7 +424,7 @@ int main(int argc, char* argv[])
 
     // STEP 2: Optimized cumulative sum computation
     dim3 gridSizeCumSumOptimized = 3; // 1 block for each color channel
-    dim3 blockSizeCumSumOptimized = 128; // 128 threads per block
+    dim3 blockSizeCumSumOptimized = 256; // 128 threads per block
 
     calculate_cumulative_sum_kernel <<<gridSizeCumSumOptimized, blockSizeCumSumOptimized >>> (d_histogram_red, d_histogram_green, d_histogram_blue);
 
