@@ -1,5 +1,1 @@
-Loaded image img/7680x4320.png of size 7680x4320.
-Executing kernel: Calculate histogram
-Executing kernel: Calculate new pixel intensities
-Executing kernel: Map new pixel intensities
-Kernel Execution time is: 43.285 milliseconds 
+Time: 31.55894

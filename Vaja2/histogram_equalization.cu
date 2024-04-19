@@ -76,10 +76,11 @@ void calculate_cumulative_histogram_cpu(int* histogram_red, int* histogram_green
 
 __global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* histogram_green, int* histogram_blue, const int width, const int height)
 {
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-	{
-        printf("Executing kernel: Calculate new pixel intensities\n");                  
-	}
+    // LOG
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+	// {
+    //     printf("Executing kernel: Calculate new pixel intensities\n");                  
+	// }
 
     __shared__ int min_red;
     __shared__ int min_green;
@@ -131,10 +132,11 @@ __global__ void calculate_new_pixel_intensities_kernel(int* histogram_red, int* 
 
 __global__ void map_new_pixel_intensities_kernel(const unsigned char* imageIn, unsigned char* imageOut, const int* histogram_red, const int* histogram_green, const int* histogram_blue, const int width, const int height, const int cpp)
 {
-	if (blockIdx.x == 0 && threadIdx.x == 0)
-	{
-		printf("Executing kernel: Map new pixel intensities\n");
-	}
+    // LOG
+	// if (blockIdx.x == 0 && threadIdx.x == 0)
+	// {
+	// 	printf("Executing kernel: Map new pixel intensities\n");
+	// }
 
 	int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 	for (int i = global_thread_id; i < width * height * cpp; i += blockDim.x * gridDim.x)
@@ -156,6 +158,15 @@ __global__ void map_new_pixel_intensities_kernel(const unsigned char* imageIn, u
 
 __global__ void calculate_cumulative_sum_kernel(int* histogram_red, int* histogram_green, int* histogram_blue) //Algorithm 2 Work-efficient parallel scan algorithm.
 {   
+
+    //copy to shared memory (DOES NOT IMPROVE PERFORMANCE, INFACT IT MAKES IT WORSE!)
+    // __shared__ int shared_histogram_red[PIXEL_VALUES];
+    // __shared__ int shared_histogram_green[PIXEL_VALUES];
+    // __shared__ int shared_histogram_blue[PIXEL_VALUES];
+    // shared_histogram_red[threadIdx.x] = histogram_red[threadIdx.x];
+    // shared_histogram_green[threadIdx.x] = histogram_green[threadIdx.x];
+    // shared_histogram_blue[threadIdx.x] = histogram_blue[threadIdx.x];
+    // __syncthreads();
 
     int log_pixel_val = 8;
 
@@ -196,14 +207,19 @@ __global__ void calculate_cumulative_sum_kernel(int* histogram_red, int* histogr
         __syncthreads();
     }
 
+    //copy back to global memory
+    // histogram_red[threadIdx.x] = shared_histogram_red[threadIdx.x];
+    // histogram_green[threadIdx.x] = shared_histogram_green[threadIdx.x];
+    // histogram_blue[threadIdx.x] = shared_histogram_blue[threadIdx.x];
 }
 
 __global__ void calculate_cumulative_sum_simple_kernel(int* histogram_red, int* histogram_green, int* histogram_blue)
 {    
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-    {
-        printf("Executing kernel: Calculate cumulative sum\n");
-    }
+    // LOG
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    // {
+    //     printf("Executing kernel: Calculate cumulative sum\n");
+    // }
 
     // Simple solution - only first three threads calculate the cumulative sums
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -231,10 +247,11 @@ __global__ void calculate_cumulative_sum_simple_kernel(int* histogram_red, int* 
 
 __global__ void calculate_histogram_kernel(const unsigned char* imageData, int* histogram_red, int* histogram_green, int* histogram_blue, const int width, const int height, const int cpp)
 { 
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-	{
-		printf("Executing kernel: Calculate histogram\n");
-	}
+    // LOG
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+	// {
+	// 	printf("Executing kernel: Calculate histogram\n");
+	// }
 
     // Shared memory for partial histograms within block
     __shared__ int partial_histogram_red[PIXEL_VALUES];
@@ -327,7 +344,7 @@ int main(int argc, char* argv[])
 {  
     if (argc < 3)
     {
-        printf("USAGE: input_image output_image\n");
+        printf("USAGE: input_image output_image histBlockSize newPixelBlockSize mapPixelBlockSize\n");
         exit(EXIT_FAILURE);
     }
 
@@ -336,6 +353,8 @@ int main(int argc, char* argv[])
 
     snprintf(szImage_in_name, 255, "%s", argv[1]);
     snprintf(szImage_out_name, 255, "%s", argv[2]);
+    
+    
 
     // Load image from file and allocate space for the output image
     int width, height, cpp;
@@ -351,17 +370,24 @@ int main(int argc, char* argv[])
 		printf("Error: Only RGB images supported!\n");
 		exit(EXIT_FAILURE);
 	}
-    printf("Loaded image %s of size %dx%d.\n", szImage_in_name, width, height);   
+    // printf("Loaded image %s of size %dx%d.\n", szImage_in_name, width, height);   
+
+    // Setup Thread organization
+    int allPixels = width * height * cpp;
+    dim3 blockSizeHist(1024);
+    dim3 blockSizeCumSum(128); // static
+    dim3 blockSizeNewPixel(512);
+    dim3 blockSizeMapPixel(256);
+    dim3 gridSizeHist((allPixels - 1) / blockSizeHist.x + 1);
+    dim3 gridSizeCumSum(3); // static
+    dim3 gridSizeNewPixel((allPixels - 1) / blockSizeNewPixel.x + 1);
+    dim3 gridSizeMapPixel((allPixels - 1) / blockSizeMapPixel.x + 1);
+
     const size_t datasize = width * height * cpp * sizeof(unsigned char);
     unsigned char* h_imageOut = (unsigned char*)malloc(datasize);
 
     // Calculate size of histogram
     const size_t histogram_size = PIXEL_VALUES * sizeof(int);  
-
-    // Setup Thread organization
-    int allPixels = width * height * cpp; // Theoretical maximum number of threads
-    dim3 blockSize(256); // 32 ... 1024 threads per block
-    dim3 gridSize((allPixels - 1) / blockSize.x + 1); // can be any size
 
     // Device memory pointers
     unsigned char* d_imageIn;
@@ -384,16 +410,17 @@ int main(int argc, char* argv[])
     checkCudaErrors(cudaMemset(d_histogram_blue, 0, histogram_size));
 
     // Use CUDA events to measure execution time
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    cudaEvent_t start_overall, stop_overall;
+    cudaEventCreate(&start_overall);
+    cudaEventCreate(&stop_overall);
+
+    cudaEventRecord(start_overall);
 
     // Copy input image to device
-    cudaEventRecord(start);
-    checkCudaErrors(cudaMemcpy(d_imageIn, h_imageIn, datasize, cudaMemcpyHostToDevice));       
+    checkCudaErrors(cudaMemcpy(d_imageIn, h_imageIn, datasize, cudaMemcpyHostToDevice));     
 
     // STEP 1: Compute histogram
-    calculate_histogram_kernel <<<gridSize, blockSize >>> (d_imageIn, d_histogram_red, d_histogram_green, d_histogram_blue, width, height, cpp);
+    calculate_histogram_kernel <<<gridSizeHist, blockSizeHist >>> (d_imageIn, d_histogram_red, d_histogram_green, d_histogram_blue, width, height, cpp);
     cudaDeviceSynchronize();
 
 #if DEBUG
@@ -423,11 +450,7 @@ int main(int argc, char* argv[])
     // calculate_cumulative_sum_simple_kernel <<<gridSize, blockSize >>> (d_histogram_red, d_histogram_green, d_histogram_blue);
 
     // STEP 2: Optimized cumulative sum computation
-    dim3 gridSizeCumSumOptimized = 3; // 1 block for each color channel
-    dim3 blockSizeCumSumOptimized = 256; // 128 threads per block
-
-    calculate_cumulative_sum_kernel <<<gridSizeCumSumOptimized, blockSizeCumSumOptimized >>> (d_histogram_red, d_histogram_green, d_histogram_blue);
-
+    calculate_cumulative_sum_kernel <<<gridSizeCumSum, blockSizeCumSum >>> (d_histogram_red, d_histogram_green, d_histogram_blue);
     cudaDeviceSynchronize();
 
 #if DEBUG
@@ -445,7 +468,7 @@ int main(int argc, char* argv[])
 #endif   
 
     // STEP 3: Compute new pixel intensities
-    calculate_new_pixel_intensities_kernel <<<gridSize, blockSize >>> (d_histogram_red, d_histogram_green, d_histogram_blue, width, height);
+    calculate_new_pixel_intensities_kernel <<<gridSizeNewPixel, blockSizeNewPixel >>> (d_histogram_red, d_histogram_green, d_histogram_blue, width, height);
     cudaDeviceSynchronize();
 
 #if DEBUG
@@ -462,21 +485,18 @@ int main(int argc, char* argv[])
     }
 #endif
     // STEP 4: Map new pixel intensities to output image
+    map_new_pixel_intensities_kernel <<<gridSizeMapPixel, blockSizeMapPixel >>> (d_imageIn, d_imageOut, d_histogram_red, d_histogram_green, d_histogram_blue, width, height, cpp);
     cudaDeviceSynchronize();
-    map_new_pixel_intensities_kernel <<<gridSize, blockSize >>> (d_imageIn, d_imageOut, d_histogram_red, d_histogram_green, d_histogram_blue, width, height, cpp);
-    
+
     // STEP 5: Copy output image back to host
     checkCudaErrors(cudaMemcpy(h_imageOut, d_imageOut, datasize, cudaMemcpyDeviceToHost));
-    
     getLastCudaError("copy_image() execution failed\n");
-    cudaEventRecord(stop);
 
-    cudaEventSynchronize(stop);
-
-    // Print time
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Kernel Execution time is: %0.3f milliseconds \n", milliseconds);
+    float overallMs = 0;
+    cudaEventRecord(stop_overall);
+    cudaEventSynchronize(stop_overall);
+    cudaEventElapsedTime(&overallMs, start_overall, stop_overall);
+    printf("Time: %0.5f\n", overallMs);
 
     // Write the output file
     char szImage_out_name_temp[255];
@@ -506,8 +526,8 @@ int main(int argc, char* argv[])
     checkCudaErrors(cudaFree(d_histogram_blue));
 
     // Clean-up events
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    cudaEventDestroy(start_overall);
+    cudaEventDestroy(stop_overall);
 
     // Free host memory
     free(h_imageIn);
