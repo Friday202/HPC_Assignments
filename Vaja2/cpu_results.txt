@@ -1,0 +1,5 @@
+Average time cpu (15 runs, img/720x480.png ): 6.133667 ms
+Average time cpu (15 runs, img/1024x768.png ): 12.512067 ms
+Average time cpu (15 runs, img/1920x1200.png ): 36.575867 ms
+Average time cpu (15 runs, img/3840x2160.png ): 132.862793 ms
+Average time cpu (15 runs, img/7680x4320.png ): 521.519470 ms

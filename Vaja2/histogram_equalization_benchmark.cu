@@ -342,7 +342,7 @@ __global__ void calculate_histogram_kernel(const unsigned char* imageData, int* 
 // h_ means host, d_ means device
 int main(int argc, char* argv[])
 {  
-    if (argc < 3)
+    if (argc < 4)
     {
         printf("USAGE: input_image output_image histBlockSize newPixelBlockSize mapPixelBlockSize\n");
         exit(EXIT_FAILURE);
@@ -360,7 +360,7 @@ int main(int argc, char* argv[])
 
     //benchmarking
     FILE *fp; 
-    const char *filename = "benchmark.csv";
+    const char *filename = argv[3];
     fp = fopen(filename, "w");
     fprintf(fp, "histBlockSize, newPixelBlockSize, mapPixelBlockSize, avgHistogramMs, avgNewPixelMs, avgMapPixelMs\n");
 
@@ -608,9 +608,9 @@ int main(int argc, char* argv[])
         avgHistogramMs /= runs;
         avgNewPixelMs /= runs;
         avgMapPixelMs /= runs;
-        printf("%d, %d, %d, %0.5f, %0.5f, %0.5f\n", histBlockSize, newPixelBlockSize, mapPixelBlockSize, avgHistogramMs, avgNewPixelMs, avgMapPixelMs);
+        printf("%d, %d, %d, %f, %f, %f\n", histBlockSize, newPixelBlockSize, mapPixelBlockSize, avgHistogramMs, avgNewPixelMs, avgMapPixelMs);
         fflush(stdout);
-        fprintf(fp, "%d, %d, %d, %0.5f, %0.5f, %0.5f\n", histBlockSize, newPixelBlockSize, mapPixelBlockSize, avgHistogramMs, avgNewPixelMs, avgMapPixelMs);
+        fprintf(fp, "%d, %d, %d, %f, %f, %f\n", histBlockSize, newPixelBlockSize, mapPixelBlockSize, avgHistogramMs, avgNewPixelMs, avgMapPixelMs);
     }
     fclose(fp);
     return 0;
