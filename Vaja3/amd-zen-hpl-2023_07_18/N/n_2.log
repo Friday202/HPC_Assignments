@@ -1,0 +1,75 @@
+================================================================================
+AMD Zen HPL 2023_07_18
+================================================================================
+Dervied from:
+HPLinpack 2.3  --  High-Performance Linpack benchmark  --   December 2, 2018
+Written by A. Petitet and R. Clint Whaley,  Innovative Computing Laboratory, UTK
+Modified by Piotr Luszczek, Innovative Computing Laboratory, UTK
+Modified by Julien Langou, University of Colorado Denver
+================================================================================
+
+An explanation of the input/output parameters follows:
+T/V    : Wall time / encoded variant.
+N      : The order of the coefficient matrix A.
+NB     : The partitioning blocking factor.
+P      : The number of process rows.
+Q      : The number of process columns.
+Time   : Time in seconds to solve the linear system.
+Gflops : Rate of execution for solving the linear system.
+
+The following parameter values will be used:
+
+N      :  175680 
+NB     :     240 
+PMAP   : Row-major process mapping
+P      :       2 
+Q      :       2 
+PFACT  :   Crout 
+NBMIN  :      30 
+NDIV   :       8 
+RFACT  :   Right 
+BCAST  :  HybBcast 
+DEPTH  :       1 
+SWAP   : (211) Spread-roll
+L1     : transposed form
+A      : no-transposed form (ColMajor)
+EQUIL  : no
+ALIGN  : 8 double precision words
+MXSWP  : (1/c) Collective 
+
+--------------------------------------------------------------------------------
+
+- The matrix A is randomly generated for each test.
+- The following scaled residual check will be computed:
+      ||Ax-b||_oo / ( eps * ( || x ||_oo * || A ||_oo + || b ||_oo ) * N )
+- The relative machine precision (eps) is taken to be               1.110223e-16
+- Computational tests pass if scaled residuals are less than                16.0
+
+Failed to open cycle counter.  Clock Speed will not report.
+   Column Complete      eFreq     Cur Rate     Est Rate
+000000240     0.1%   0.000Ghz   1.1207e+03   1.1207e+03
+000000480     0.3%   0.000Ghz   9.7274e+01   1.7922e+02
+000000720     0.4%   0.000Ghz   8.6346e+01   1.3202e+02
+000000960     0.5%   0.000Ghz   9.4071e+01   1.1997e+02
+000001200     0.7%   0.000Ghz   8.5994e+01   1.1123e+02
+000001440     0.8%   0.000Ghz   9.6935e+01   1.0858e+02
+000001680     1.0%   0.000Ghz   8.5341e+01   1.0454e+02
+000001920     1.1%   0.000Ghz   9.6522e+01   1.0348e+02
+000002160     1.2%   0.000Ghz   8.5115e+01   1.0108e+02
+000002400     1.4%   0.000Ghz   9.7183e+01   1.0068e+02
+================================================================================
+T/V        SWP            N    NB     P     Q            Time             Gflops
+--------------------------------------------------------------------------------
+WR17R8C30c 211       175680   240     2     2         1665.52         2.1704e+03
+HPL_pdgesv() start time Thu May 16 16:45:16 2024
+HPL_pdgesv() end time   Thu May 16 17:13:01 2024
+================================================================================
+
+Finished      1 tests with the following results:
+              0 tests completed and passed residual checks,
+              0 tests completed and failed residual checks,
+              1 tests skipped because of illegal input values.
+--------------------------------------------------------------------------------
+
+End of Tests.
+================================================================================

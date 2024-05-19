@@ -1,0 +1,83 @@
+================================================================================
+AMD Zen HPL 2023_07_18
+================================================================================
+Dervied from:
+HPLinpack 2.3  --  High-Performance Linpack benchmark  --   December 2, 2018
+Written by A. Petitet and R. Clint Whaley,  Innovative Computing Laboratory, UTK
+Modified by Piotr Luszczek, Innovative Computing Laboratory, UTK
+Modified by Julien Langou, University of Colorado Denver
+================================================================================
+
+An explanation of the input/output parameters follows:
+T/V    : Wall time / encoded variant.
+N      : The order of the coefficient matrix A.
+NB     : The partitioning blocking factor.
+P      : The number of process rows.
+Q      : The number of process columns.
+Time   : Time in seconds to solve the linear system.
+Gflops : Rate of execution for solving the linear system.
+
+The following parameter values will be used:
+
+N      :   72000 
+NB     :     240 
+PMAP   : Row-major process mapping
+P      :       1 
+Q      :     128 
+PFACT  :   Crout 
+NBMIN  :      30 
+NDIV   :       8 
+RFACT  :   Right 
+BCAST  :  HybBcast 
+DEPTH  :       1 
+SWAP   : (211) Spread-roll
+L1     : transposed form
+A      : no-transposed form (ColMajor)
+EQUIL  : no
+ALIGN  : 8 double precision words
+MXSWP  : (1/c) Collective 
+
+--------------------------------------------------------------------------------
+
+- The matrix A is randomly generated for each test.
+- The following scaled residual check will be computed:
+      ||Ax-b||_oo / ( eps * ( || x ||_oo * || A ||_oo + || b ||_oo ) * N )
+- The relative machine precision (eps) is taken to be               1.110223e-16
+- Computational tests pass if scaled residuals are less than                16.0
+
+Failed to open cycle counter.  Clock Speed will not report.
+   Column Complete      eFreq     Cur Rate     Est Rate
+000000240     0.3%   0.000Ghz   1.4375e+02   1.4375e+02
+000000480     0.7%   0.000Ghz   1.6807e+02   1.5492e+02
+000000720     1.0%   0.000Ghz   8.5541e+01   1.2212e+02
+000000960     1.3%   0.000Ghz   8.9140e+01   1.1188e+02
+000001200     1.7%   0.000Ghz   9.6473e+01   1.0846e+02
+000001440     2.0%   0.000Ghz   9.0088e+01   1.0495e+02
+000001680     2.3%   0.000Ghz   9.7360e+01   1.0382e+02
+000001920     2.7%   0.000Ghz   8.9934e+01   1.0190e+02
+000002160     3.0%   0.000Ghz   9.3877e+01   1.0097e+02
+000002400     3.3%   0.000Ghz   9.4496e+01   1.0030e+02
+000002640     3.7%   0.000Ghz   9.4804e+01   9.9793e+01
+000002880     4.0%   0.000Ghz   9.5753e+01   9.9456e+01
+000003120     4.3%   0.000Ghz   9.6777e+01   9.9253e+01
+000003360     4.7%   0.000Ghz   8.0325e+01   9.7682e+01
+000003600     5.0%   0.000Ghz   9.0909e+01   9.7222e+01
+000003840     5.3%   0.000Ghz   1.0403e+02   9.7600e+01
+000004080     5.7%   0.000Ghz   9.1248e+01   9.7224e+01
+000004320     6.0%   0.000Ghz   8.7624e+01   9.6670e+01
+000004560     6.3%   0.000Ghz   8.0540e+01   9.5722e+01
+000004800     6.7%   0.000Ghz   9.0289e+01   9.5454e+01
+000005040     7.0%   0.000Ghz   8.3476e+01   9.4850e+01
+000005280     7.3%   0.000Ghz   7.9359e+01   9.4075e+01
+000005520     7.7%   0.000Ghz   8.3977e+01   9.3623e+01
+000005760     8.0%   0.000Ghz   9.2750e+01   9.3589e+01
+000006000     8.3%   0.000Ghz   7.8114e+01   9.2913e+01
+000006240     8.7%   0.000Ghz   8.5691e+01   9.2639e+01
+000006480     9.0%   0.000Ghz   8.7073e+01   9.2439e+01
+000006720     9.3%   0.000Ghz   8.0025e+01   9.1977e+01
+000006960     9.7%   0.000Ghz   8.6244e+01   9.1787e+01
+000007200    10.0%   0.000Ghz   8.3885e+01   9.1528e+01
+000007440    10.3%   0.000Ghz   8.0176e+01   9.1155e+01
+000007680    10.7%   0.000Ghz   8.0700e+01   9.0827e+01
+000007920    11.0%   0.000Ghz   7.4870e+01   9.0308e+01
+slurmstepd: error: *** JOB 49349623 ON wn115 CANCELLED AT 2024-05-16T13:23:07 DUE TO TIME LIMIT ***

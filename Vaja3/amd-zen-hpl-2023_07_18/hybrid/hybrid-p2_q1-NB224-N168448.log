@@ -1,0 +1,14 @@
+cannot open file hybrid/hybrid-p2_q1-NB224-N168448.datHPL ERROR from process # 0, on line 662 of function HPL_pdinfo:
+>>> Illegal input in file -1554466160. Exiting ... <<<
+
+--------------------------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun detected that one or more processes exited with non-zero status, thus causing
+the job to be terminated. The first process to do so was:
+
+  Process name: [[39618,1],1]
+  Exit code:    1
+--------------------------------------------------------------------------

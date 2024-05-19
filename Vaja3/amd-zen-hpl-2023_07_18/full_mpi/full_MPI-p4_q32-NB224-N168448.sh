@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --reservation=fri
 #SBATCH --job-name=mpi_p4
-#SBATCH --ntasks-per-node 128
+#SBATCH --ntasks 128
 #SBATCH --nodes=1
 #SBATCH --mem=250G
 #SBATCH --time=2:00:00

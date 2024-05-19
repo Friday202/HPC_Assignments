@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --reservation=fri
 #SBATCH --job-name=hy_p1
-#SBATCH --ntasks-per-node 2
+#SBATCH --ntasks 2
 #SBATCH --nodes=1
 #SBATCH --mem=250G
 #SBATCH --time=2:00:00

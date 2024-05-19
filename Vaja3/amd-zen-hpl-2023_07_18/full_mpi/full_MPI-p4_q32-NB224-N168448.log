@@ -1,0 +1,57 @@
+================================================================================
+AMD Zen HPL 2023_07_18
+================================================================================
+Dervied from:
+HPLinpack 2.3  --  High-Performance Linpack benchmark  --   December 2, 2018
+Written by A. Petitet and R. Clint Whaley,  Innovative Computing Laboratory, UTK
+Modified by Piotr Luszczek, Innovative Computing Laboratory, UTK
+Modified by Julien Langou, University of Colorado Denver
+================================================================================
+
+An explanation of the input/output parameters follows:
+T/V    : Wall time / encoded variant.
+N      : The order of the coefficient matrix A.
+NB     : The partitioning blocking factor.
+P      : The number of process rows.
+Q      : The number of process columns.
+Time   : Time in seconds to solve the linear system.
+Gflops : Rate of execution for solving the linear system.
+
+The following parameter values will be used:
+
+N      :  174240 
+NB     :     240 
+PMAP   : Row-major process mapping
+P      :       4 
+Q      :      32 
+PFACT  :   Crout 
+NBMIN  :      30 
+NDIV   :       8 
+RFACT  :   Right 
+BCAST  :  HybBcast 
+DEPTH  :       1 
+SWAP   : (211) Spread-roll
+L1     : transposed form
+A      : no-transposed form (ColMajor)
+EQUIL  : no
+ALIGN  : 8 double precision words
+MXSWP  : (1/c) Collective 
+
+--------------------------------------------------------------------------------
+
+- The matrix A is randomly generated for each test.
+- The following scaled residual check will be computed:
+      ||Ax-b||_oo / ( eps * ( || x ||_oo * || A ||_oo + || b ||_oo ) * N )
+- The relative machine precision (eps) is taken to be               1.110223e-16
+- Computational tests pass if scaled residuals are less than                16.0
+
+Failed to open cycle counter.  Clock Speed will not report.
+--------------------------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun noticed that process rank 8 with PID 1825983 on node wn114 exited on signal 9 (Killed).
+--------------------------------------------------------------------------
+11 total processes killed (some possibly by mpirun during cleanup)
+slurmstepd: error: Detected 13 oom_kill events in StepId=49344113.batch. Some of the step tasks have been OOM Killed.
