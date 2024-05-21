@@ -4,13 +4,13 @@
 #SBATCH --partition=gpu
 #SBATCH --job-name=lenia
 #SBATCH --ntasks=2
+#SBATCH --time=00:10:00
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gpus=1
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --output=lenia_out.log
 
-# ntasks go  1, 2, 4, 16, 32, and 64
-# cpus-per-task is always 1 
 
 #OMP SETTINGS IF NEEDED
 export OMP_PLACES=cores

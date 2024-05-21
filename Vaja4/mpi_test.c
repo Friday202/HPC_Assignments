@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 	} 
 	else 
 	{ 
-		printf("Hello from root process running on %s!\n\n", node_name); 
+		printf("Hello from root process running on %s! Also here is my process %d/%d\n\n", node_name, rank,num_p); 
 		fflush(stdout); 
 		for( source = 1; source < num_p; source++) 
 		{ 

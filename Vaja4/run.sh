@@ -3,8 +3,8 @@
 #SBATCH --time=00:01:00 
 ##SBATCH --reservation=fri
 #SBATCH --ntasks=2
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
 #SBATCH --output=out_mpi_test.log
 
 module load OpenMPI

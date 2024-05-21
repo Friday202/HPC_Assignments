@@ -5,10 +5,10 @@
 #include "orbium.h"
 #include "gifenc.h"
 
-// #include <omp.h>
+#include <omp.h>
 #include <mpi.h>
-// #include <cuda_runtime.h>
-// #include <cuda.h>
+#include <cuda_runtime.h>
+#include <cuda.h>
 
 // Uncomment to generate gif animation
 #define GENERATE_GIF
@@ -147,6 +147,8 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
     // Scatter world to all processes
     MPI_Scatter(world, local_size, MPI_DOUBLE, local_world, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+    printf("Rank %d, size %d\n", rank, size);  
+
     // Lenia Simulation
     for (unsigned int step = 0; step < steps; step++)
     {
@@ -176,7 +178,7 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
                 local_world[i * local_cols + j] += dt * growth_lenia(local_tmp[i * local_cols + j]);
                 local_world[i * local_cols + j] = fmin(1, fmax(0, local_world[i * local_cols + j])); // Clip between 0 and 1
             }
-        }        
+        }              
 
 #ifdef GENERATE_GIF
 
