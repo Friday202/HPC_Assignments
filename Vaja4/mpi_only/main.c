@@ -3,25 +3,36 @@
 #include <omp.h>
 #include "lenia.h"
 
-#define N 100
-#define NUM_STEPS 100
+#define NUM_STEPS 50
 #define DT 0.1
 #define KERNEL_SIZE 26
 #define NUM_ORBIUMS 2
 
-//DEMO main. Your main.c will not be compiled into the final app. 
 
-struct orbium_coo orbiums[NUM_ORBIUMS] = {{0, N / 3, 0}, {N / 3, 0, 180}};
-
-int main()
+int main(int argc, char *argv[])
 {
-    printf("Running Lenia simulation\n");
+    if (argc != 2) {
+        printf("Usage: %s <N>\n", argv[0]);
+        return 1;
+    }
+
+    int N = atoi(argv[1]);
+    if (N <= 0) {
+        printf("Invalid value for N\n");
+        return 1;
+    }
+
+    printf("Running Lenia simulation with N = %d\n", N);
+
+    struct orbium_coo orbiums[NUM_ORBIUMS] = {{0, N / 3, 0}, {N / 3, 0, 180}};
+
+
     double start = omp_get_wtime();
     // Run the simulation
-    // You should provide your own implementation of the function evolve_lenia in order to compete
-    // Your code should work for arbitrary world size N, NUM_STEPS, and NUM_ORBIUMS. KERNEL SIZE is fixed to 26
     double *world = evolve_lenia(N, N, NUM_STEPS, DT, KERNEL_SIZE, orbiums, NUM_ORBIUMS);
     double stop = omp_get_wtime();
+    
     printf("Execution time: %.3f\n", stop - start);
+
     return 0;
 }

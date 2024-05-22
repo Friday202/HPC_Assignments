@@ -133,9 +133,11 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
             world = place_orbium(world, rows, cols, orbiums[o].row, orbiums[o].col, orbiums[o].angle);
         }
 
-        // Broadcast kernel 
-        MPI_Bcast(w, kernel_size * kernel_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        
     }
+
+    // Broadcast kernel 
+    MPI_Bcast(w, kernel_size * kernel_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // Calcualte local subgrid size
     unsigned int local_rows = rows / size;
