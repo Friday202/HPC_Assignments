@@ -3,7 +3,9 @@
 #include <omp.h>
 #include "lenia.h"
 
-#define NUM_STEPS 100
+#include "mpi.h"
+
+#define NUM_STEPS 50
 #define DT 0.1
 #define KERNEL_SIZE 26
 #define NUM_ORBIUMS 2
@@ -22,17 +24,27 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("Running Lenia simulation with N = %d\n", N);
+    // printf("Running Lenia simulation with N = %d\n", N);
 
-    struct orbium_coo orbiums[NUM_ORBIUMS] = {{0, N / 3, 0}, {N / 3, 0, 180}};
+    double avgTime = 0;
+    int num_iterations = 3;
+    MPI_Init(NULL, NULL);
 
+    for (int i = 0; i < num_iterations; i++) {
+        // Orbiums
+        struct orbium_coo orbiums[NUM_ORBIUMS] = {{0, N / 3, 0}, {N / 3, 0, 180}};
 
-    double start = omp_get_wtime();
-    // Run the simulation
-    double *world = evolve_lenia(N, N, NUM_STEPS, DT, KERNEL_SIZE, orbiums, NUM_ORBIUMS);
-    double stop = omp_get_wtime();
+        double start = omp_get_wtime();
+        // Run the simulation
+        double *world = evolve_lenia(N, N, NUM_STEPS, DT, KERNEL_SIZE, orbiums, NUM_ORBIUMS);
+        double stop = omp_get_wtime();
+        avgTime += stop - start;
+    }
+    MPI_Finalize();
+
+    avgTime /= num_iterations;
     
-    printf("Execution time: %.3f\n", stop - start);
+    printf("Execution time: %.3f\n", avgTime);
 
     return 0;
 }

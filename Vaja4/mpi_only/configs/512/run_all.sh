@@ -7,7 +7,3 @@ sleep 2
 sbatch configs/512/nodes_1_tasks_8_cpusPerTask_8_grid_512.sh
 sleep 2
 sbatch configs/512/nodes_1_tasks_16_cpusPerTask_4_grid_512.sh
-sleep 2
-sbatch configs/512/nodes_1_tasks_32_cpusPerTask_2_grid_512.sh
-sleep 2
-sbatch configs/512/nodes_1_tasks_64_cpusPerTask_1_grid_512.sh

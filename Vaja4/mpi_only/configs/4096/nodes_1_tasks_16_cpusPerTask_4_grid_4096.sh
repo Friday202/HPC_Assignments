@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --reservation=fri
 #SBATCH --job-name=lenia_MPI
-#SBATCH --time=00:01:00 
+#SBATCH --time=10:00:00 
 #SBATCH --ntasks=16
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=16

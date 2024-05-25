@@ -9,5 +9,3 @@ sleep 2
 sbatch configs/1024/nodes_1_tasks_16_cpusPerTask_4_grid_1024.sh
 sleep 2
 sbatch configs/1024/nodes_1_tasks_32_cpusPerTask_2_grid_1024.sh
-sleep 2
-sbatch configs/1024/nodes_1_tasks_64_cpusPerTask_1_grid_1024.sh

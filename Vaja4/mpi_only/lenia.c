@@ -11,7 +11,7 @@
 //#include <cuda.h>
 
 // Uncomment to generate gif animation
-#define GENERATE_GIF
+// #define GENERATE_GIF
 
 // For prettier indexing syntax
 #define w(r, c) (w[(r) * w_cols + (c)])
@@ -69,7 +69,7 @@ double *generate_kernel(double *K, const unsigned int size)
 // Function to perform convolution on input using kernel w
 inline double *convolve2d(double *result, const double *input, const double *w, const unsigned int rows, const unsigned int cols, const unsigned int w_rows, const unsigned int w_cols)
 {
-    printf("Convolution\n");
+    // printf("Convolution\n");
     if (result != NULL && input != NULL && w != NULL)
     {
         for (unsigned int i = 0; i < rows; i++)
@@ -88,20 +88,20 @@ inline double *convolve2d(double *result, const double *input, const double *w, 
             }
         }
     }
-    printf("Convolution done\n");
+    // printf("Convolution done\n");
     return result;
 }
 
 // Function to evolve Lenia
 double *evolve_lenia(const unsigned int rows, const unsigned int cols, const unsigned int steps, const double dt, const unsigned int kernel_size, const struct orbium_coo *orbiums, const unsigned int num_orbiums)
 {
-    MPI_Init(NULL, NULL);
+    // MPI_Init(NULL, NULL);
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    printf("Rank %d, size %d\n", rank, size);   
+    // printf("Rank %d, size %d\n", rank, size);   
 
     // Allocate memory
     double *w = (double *)calloc(kernel_size * kernel_size, sizeof(double));   
@@ -320,7 +320,7 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
     free(local_world);
     free(local_tmp);
 
-    MPI_Finalize();
+    // MPI_Finalize();
 
     return world;
 }
