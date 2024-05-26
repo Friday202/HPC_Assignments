@@ -16,6 +16,6 @@ export OMP_PLACES=cores
 export OMP_PROC_BIND=TRUE
 export OMP_NUM_THREADS=$CPUS_PER_TASK_MPI
 
-mpirun -np $SLURM_NTASKS ./lenia_MPI 128
+mpirun -np $SLURM_NTASKS ./lenia_MPI 100
 
 rm lenia_MPI

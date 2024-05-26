@@ -11,7 +11,7 @@
 //#include <cuda.h>
 
 // Uncomment to generate gif animation
-//#define GENERATE_GIF
+#define GENERATE_GIF
 
 // For prettier indexing syntax
 #define w(r, c) (w[(r) * w_cols + (c)])
@@ -145,10 +145,11 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
                 ++j;
             }
             world[i] = j;
-        }
+        }*/
         
 
-        // Print world        
+        // Print world
+        /*
         for (unsigned int i = 0; i < rows; i++)
         {
             for (unsigned int j = 0; j < cols; j++)
@@ -156,7 +157,8 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
                 printf("%f ", world[i * rows + j]);
             }
             printf("\n");
-        } */           
+        }  
+        */      
     }
     
 
@@ -166,23 +168,15 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
     // Calcualte local subgrid size
     unsigned int local_rows = rows / size;
     unsigned int local_cols = cols;
-
     unsigned int local_size = local_rows * local_cols; // Own process aka offset
- 
-    
-    unsigned int border_size = kernel_size * local_cols; // Size of the border to exchange with neighbors
-    //unsigned int border_size = 2 * local_cols; // Size of the border to exchange with neighbors
-
-
-    unsigned int local_full_size = local_size + border_size * 2; // Own process + 2 neighbors
-
+    unsigned int local_full_size = local_rows * local_cols * 3; // Own process + 2 neighbors
 
     // Allocate memory for local subgrid
     double *local_world = (double *)calloc(local_full_size, sizeof(double));
     double *local_tmp = (double *)calloc(local_full_size, sizeof(double));
 
     // Scatter world to all processes
-    MPI_Scatter(world, local_size, MPI_DOUBLE, local_world + border_size, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD); // Scatter world to all process but offset for 2*local_size
+    MPI_Scatter(world, local_size, MPI_DOUBLE, local_world + local_size, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD); // Scatter world to all process but offset for 2*local_size
 
     /*
     if (rank == 0)
@@ -218,15 +212,15 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
         int prev_rank = (rank == 0) ? size - 1 : rank - 1;
         int next_rank = (rank == size - 1) ? 0 : rank + 1;
 
-        // Non-blocking send to previous rank UPSEND
-        MPI_Isend(local_world + border_size, border_size, MPI_DOUBLE, prev_rank, 0, MPI_COMM_WORLD, &requests[0]);
+        // Non-blocking send to previous rank
+        MPI_Isend(local_world + local_size, local_size, MPI_DOUBLE, prev_rank, 0, MPI_COMM_WORLD, &requests[0]);
         // Non-blocking receive from previous rank
-        MPI_Irecv(local_world, border_size, MPI_DOUBLE, prev_rank, 0, MPI_COMM_WORLD, &requests[1]);
+        MPI_Irecv(local_world, local_size, MPI_DOUBLE, prev_rank, 0, MPI_COMM_WORLD, &requests[1]);
 
-        // Non-blocking send to next rank DOWN SEND
-        MPI_Isend(local_world + local_size, border_size, MPI_DOUBLE, next_rank, 0, MPI_COMM_WORLD, &requests[2]);
+        // Non-blocking send to next rank
+        MPI_Isend(local_world + local_size, local_size, MPI_DOUBLE, next_rank, 0, MPI_COMM_WORLD, &requests[2]);
         // Non-blocking receive from next rank
-        MPI_Irecv(local_world + local_size + border_size, border_size, MPI_DOUBLE, next_rank, 0, MPI_COMM_WORLD, &requests[3]);
+        MPI_Irecv(local_world + local_size * 2, local_size, MPI_DOUBLE, next_rank, 0, MPI_COMM_WORLD, &requests[3]);
 
         // Wait for all communication to complete
         MPI_Waitall(4, requests, statuses);
@@ -264,12 +258,11 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
                 }
                 printf("%f ", local_world[i]);
             }   
-            printf("\nEntering convolve\n");      
-            exit(0);   
+            printf("\nEntering convolve\n");         
         }*/
         
         // Convolve local subgrid        
-        local_tmp = convolve2d(local_tmp, local_world, w, local_rows + kernel_size * 2, local_cols, kernel_size, kernel_size);
+        local_tmp = convolve2d(local_tmp, local_world, w, local_rows * 3, local_cols, kernel_size, kernel_size);
         //convolve2d_mpi(local_tmp, local_world, w, local_rows * 3, local_cols * 3, kernel_size, kernel_size, rank, local_full_size);        
         
         // Update local subgrid
@@ -277,8 +270,8 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
         {
             for (unsigned int j = 0; j < local_cols; j++)
             {
-                local_world[i * local_cols + j + border_size] += dt * growth_lenia(local_tmp[i * local_cols + j + border_size]);
-                local_world[i * local_cols + j + border_size] = fmin(1, fmax(0, local_world[i * local_cols + j + border_size])); // Clip between 0 and 1
+                local_world[i * local_cols + j + local_size] += dt * growth_lenia(local_tmp[i * local_cols + j + local_size]);
+                local_world[i * local_cols + j + local_size] = fmin(1, fmax(0, local_world[i * local_cols + j + local_size])); // Clip between 0 and 1
             }
         }    
 
@@ -288,7 +281,7 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
 #ifdef GENERATE_GIF
 
         // Gather local subgrid to world
-        MPI_Gather(local_world + border_size, local_size, MPI_DOUBLE, world, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);        
+        MPI_Gather(local_world + local_size, local_size, MPI_DOUBLE, world, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);        
         // Rank 0 updates gif 
         if (rank == 0)
         {
@@ -305,7 +298,7 @@ double *evolve_lenia(const unsigned int rows, const unsigned int cols, const uns
     }
 
     // Gather local subgrid to world
-    MPI_Gather(local_world + border_size, local_size, MPI_DOUBLE, world, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gather(local_world + local_size, local_size, MPI_DOUBLE, world, local_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 #ifdef GENERATE_GIF
     if (rank == 0)

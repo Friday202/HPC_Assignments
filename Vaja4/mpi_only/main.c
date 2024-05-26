@@ -5,7 +5,7 @@
 
 #include "mpi.h"
 
-#define NUM_STEPS 50
+#define NUM_STEPS 100
 #define DT 0.1
 #define KERNEL_SIZE 26
 #define NUM_ORBIUMS 2
