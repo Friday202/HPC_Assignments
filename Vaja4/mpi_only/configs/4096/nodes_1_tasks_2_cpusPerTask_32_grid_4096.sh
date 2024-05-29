@@ -12,8 +12,7 @@ module load OpenMPI
 mpicc main.c lenia.c gifenc.c orbium.c -O2 -o lenia_MPI -fopenmp -lm -lmpi
 
 # OpenMP environment variables
-export OMP_PLACES=cores
-export OMP_PROC_BIND=TRUE
+
 export OMP_NUM_THREADS=32
 
 mpirun -np $SLURM_NTASKS ./lenia_MPI 4096

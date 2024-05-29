@@ -5,7 +5,7 @@
 
 #include "mpi.h"
 
-#define NUM_STEPS 100
+#define NUM_STEPS 50
 #define DT 0.1
 #define KERNEL_SIZE 26
 #define NUM_ORBIUMS 2
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     // printf("Running Lenia simulation with N = %d\n", N);
 
     double avgTime = 0;
-    int num_iterations = 3;
+    int num_iterations = 2;
     MPI_Init(NULL, NULL);
 
     for (int i = 0; i < num_iterations; i++) {
